@@ -1,5 +1,6 @@
 import pdfplumber
 import re
+import json
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -9,8 +10,26 @@ class PDFExtractAPIView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def extract_data_from_pdf(self, pdf_file):
-        data = {"CITY TAX": [], "ROOM RENT": [], "STATE TAX": []}
+        file_parameters = {
+            "Date Range": "",
+            "Hotel ID": "",
+            "Run Date": "",
+            "Run Time": "",
+            "Username": "",
+            "Charge Type": "",
+            "CITY TAX": [],
+            "ROOM RENT": [],
+            "STATE TAX": []
+        }
+
         section = None
+
+        # Regular expressions for extracting the top-level info
+        date_range_pattern = re.compile(r'Date Range\s*:\s*(.*)')
+        hotel_run_date_pattern = re.compile(r'Hotel ID\s*:\s*(\d+)\s+Run Date\s*:\s*([\w\s,]+)')
+        run_time_pattern = re.compile(r'Run Time\s*:\s*(.*)')
+        username_pattern = re.compile(r'Username\s*:\s*(.*)')
+        charge_type_pattern = re.compile(r'Charge Type\s*:\s*(.*)')
 
         # Open the PDF
         with pdfplumber.open(pdf_file) as pdf:
@@ -20,6 +39,19 @@ class PDFExtractAPIView(APIView):
 
                 for line in lines:
                     line = line.strip()
+
+                    # Extract top-level parameters
+                    if date_range_match := date_range_pattern.search(line):
+                        file_parameters["Date Range"] = date_range_match.group(1).strip()
+                    elif hotel_run_date_match := hotel_run_date_pattern.search(line):
+                        file_parameters["Hotel ID"] = hotel_run_date_match.group(1).strip()
+                        file_parameters["Run Date"] = hotel_run_date_match.group(2).strip()
+                    elif run_time_match := run_time_pattern.search(line):
+                        file_parameters["Run Time"] = run_time_match.group(1).strip()
+                    elif username_match := username_pattern.search(line):
+                        file_parameters["Username"] = username_match.group(1).strip()
+                    elif charge_type_match := charge_type_pattern.search(line):
+                        file_parameters["Charge Type"] = charge_type_match.group(1).strip()
 
                     # Identify sections
                     if "CITY TAX" in line:
@@ -32,29 +64,29 @@ class PDFExtractAPIView(APIView):
                         section = "STATE TAX"
                         continue  # Skip the header
 
-                    # Process lines that contain data
-                    if section and re.search(r'\bSep \d{2}, \d{4}', line):  # Detect a valid line with a date pattern
-                        # Regular expression to capture date, transaction number, guest name, room number, amount, and remarks
-                        match = re.match(r'(\w+ \d{2}, \d{4})\s+(\w+)\s+([\w\s]+)\s+(\d+)\s+([-\$?\d.]+)', line)
+                    # Process lines with known section and valid date format (e.g., Sep 06, 2024)
+                    if section and re.search(r'\b\w+ \d{2}, \d{4}', line):
+                        # Regular expression to capture the columns
+                        match = re.match(r'(\w+ \d{2}, \d{4})\s+(\w+)\s+([\w\s]+)\s+(\d+)\s+([-\$?\d.,]+)', line)
                         if match:
                             date, transaction_number, guest_name, room_number, amount = match.groups()
 
-                            # Format the amount with a dollar sign
+                            # Format amount
                             if amount.startswith("-"):
-                                formatted_amount = f"-${amount[2:]}"  # Ensure the negative amount is formatted as "-$X.XX"
+                                formatted_amount = f"-${amount[2:]}"
                             else:
-                                formatted_amount = f"{amount}"  # Format positive values with "$X.XX"
+                                formatted_amount = f"{amount.strip()}"
 
-                            # Append the data, including negative amounts
-                            data[section].append({
+                            # Append data to the section
+                            file_parameters[section].append({
                                 "Date": date.strip(),
                                 "Transaction Number": transaction_number.strip(),
                                 "Guest Name": guest_name.strip(),
                                 "Room Number": room_number.strip(),
-                                "Amount": formatted_amount.strip(),  # Both positive and negative values are captured
+                                "Amount": formatted_amount.strip()
                             })
 
-        return data
+        return file_parameters
 
     def post(self, request, *args, **kwargs):
         pdf_file = request.FILES.get('file', None)
@@ -63,6 +95,7 @@ class PDFExtractAPIView(APIView):
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            # Call the extraction method
             extracted_data = self.extract_data_from_pdf(pdf_file)
             return Response(extracted_data, status=status.HTTP_200_OK)
         except Exception as e:
