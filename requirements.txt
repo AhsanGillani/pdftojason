@@ -1,0 +1,8 @@
+Django==3.2.7
+gunicorn==20.1.0
+psycopg2==2.9.1   # If you're using PostgreSQL
+django-crispy-forms==1.13.0
+Pillow==8.3.2     # If you're handling images
+pdfplumber==0.5.28
+PyPDF2==1.26.0
+djangorestframework==3.12.4  
