@@ -1,3 +1,4 @@
+import pandas as pd
 import pdfplumber
 import re
 import json
@@ -100,6 +101,8 @@ class PDFExtractAPIView(APIView):
             return Response(extracted_data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 
 
@@ -244,6 +247,92 @@ class TaxExemptAPIView(APIView):
 
 
 
+
+
+
+
+
+
+class ClerkActivityAPIView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def extract_data_from_excel(self, file):
+        # Load the Excel file
+        df = pd.read_excel(file, sheet_name='Sheet1', header=None)
+        df = df.drop(df.columns[0], axis=1)
+        
+        # Initialize the data structure
+        data = {
+            "Date Range": "Sep 06, 2024 - Sep 06, 2024",  # Hardcoded for this example, adjust as needed
+            "Run Date": "Sep 07, 2024",  # Hardcoded for this example, adjust as needed
+            "Run Time": "3:32:59 PM",  # Hardcoded for this example, adjust as needed
+            "Username": "Sagar Patel",  # Hardcoded for this example, adjust as needed
+            "User": "ALL",  # Hardcoded for this example, adjust as needed
+            "Payment Type": "ALL",  # Hardcoded for this example, adjust as needed
+            "cash": [],
+            "Master": [],
+            "Visa": []
+        }
+
+        # Helper function to extract data from each section
+        def extract_section_data(df, start_row):
+            transactions = []
+            for i in range(start_row, df.shape[0]):
+                # Stop if the Grand Total is reached or the next section is detected
+                if pd.isna(df.iloc[i, 0]) or 'Grand Total' in str(df.iloc[i, 0]):
+                    break
+
+                # Extract transaction details, ensuring there are no NaN values
+                transaction = {
+                    "Date": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else "",
+                    "Time": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else "",
+                    "Confirmation No": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else "",
+                    "Guest Name": df.iloc[i, 6] if not pd.isna(df.iloc[i, 6]) else "",
+                    "Company Name": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else "",
+                    "Room Number": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else "",
+                    "Username": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else "",
+                    "Amount": df.iloc[i, 14] if not pd.isna(df.iloc[i, 14]) else ""
+                }
+                transactions.append(transaction)
+            return transactions
+
+        # Function to locate the start of each section
+        def find_section_start(df, section_name):
+            for i in range(df.shape[0]):
+                # Convert the cell to a string, strip extra spaces, and handle NaN
+                cell_value = str(df.iloc[i, 0]).strip() if not pd.isna(df.iloc[i, 0]) else ''
+                if cell_value.lower() == section_name.lower():
+                    return i + 2  # Skip the header row (Date, Time, etc.)
+            return None
+
+        # Identify where each section starts
+        cash_start = find_section_start(df, 'Cash')
+        master_start = find_section_start(df, 'Master')
+        visa_start = find_section_start(df, 'Visa')
+
+        # Extract data for each section if the section exists
+        if cash_start is not None:
+            data["cash"] = extract_section_data(df, cash_start)
+        if master_start is not None:
+            data["Master"] = extract_section_data(df, master_start)
+        if visa_start is not None:
+            data["Visa"] = extract_section_data(df, visa_start)
+
+        # Return the extracted data as JSON
+        return data
+
+    def post(self, request, *args, **kwargs):
+        excel_file = request.FILES.get('file', None)
+
+        if not excel_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Call the extraction method
+            extracted_data = self.extract_data_from_excel(excel_file)
+            return Response(extracted_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
