@@ -105,10 +105,6 @@ class PDFExtractAPIView(APIView):
 
 
 
-
-
-
-
 class TaxExemptAPIView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -245,14 +241,6 @@ class TaxExemptAPIView(APIView):
 
 
 
-
-
-
-
-
-
-
-
 class ClerkActivityAPIView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -337,6 +325,358 @@ class ClerkActivityAPIView(APIView):
 
 
 
+
+
+class FinalAuditAPIView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def extract_data_from_pdf(self, pdf_file):
+        # Initialize the dictionary to hold extracted data
+        data = {
+            "Date Range": "",
+            "Run Date": "",
+            "Run Time": "",
+            "Night Audit Time":"",
+            "Username": "",
+            "Hotel ID": "",
+            "Revenue Breakdown": [],
+            "Charges Breakdown": [],
+            "Taxes Breakdown": [],
+            "Cash Breakdown": [],
+            "Card Breakdown": [],
+            "Other Breakdown": [],
+            "Direct Bill Breakdown": [],
+            "Deposit Information Breakdown": [],
+            "Cash Drop Information Breakdown": [],
+            "Room Statistics": [],
+            "Performance Statistics": [],
+            "Turn Away Information": [],
+            "Guest Ledger Balance": {},
+            "Direct Bill Balance": {},
+            "Advanced Deposit Balance": {},
+            "Hotel Balance": {}
+        }
+
+        # Regular expressions for top-level fields
+        date_range_pattern = re.compile(r'LONESTAR INN\s+Date\s*:\s*([\w]+\s+\d{2},\s+\d{4})')
+        hotel_run_date_pattern = re.compile(r'Hotel ID\s*:\s*(\d+)\s+Run Date\s*:\s*([\w\s,]+)')
+        run_time_pattern = re.compile(r'Run Time\s*:\s*(.*)')
+        night_time = re.compile(r'Night Audit Time\s*:\s*(.*)')
+        username_pattern = re.compile(r'Username\s*:\s*(.*)')
+
+        # Patterns for the sections like Revenue, Charges, etc.
+        section_header_pattern = re.compile(r'(Revenue|Charges|Taxes|Cash|Card|Other|Direct Bill|Deposit Information|Cash Drop Information)\s+Actual Today')
+        section_values_pattern = re.compile(r'([\w\s]+)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)')
+        
+        #re.compile(r'([\w\s]+)\s+\$?([\d,.]*)\s+\$?([\d,.]*)\s+\$?([\d,.]*)\s+\$?([\d,.]*)\s+\$?([\d,.]*)\s+\$?([\d,.]*)\s+\$?([\d,.]*)\s+\$?([\d,.]*)\s+\$?([\d,.]*)')
+        Taxes_section_values_pattern =re.compile(r'(CITY TAX|STATE TAX)\s+\$?([\d,.]+)\s+(-?\$?[\d,.]+)\s+(-?\$?[\d,.]+)\s+(-?\$?[\d,.]+)\s+(-?\$?[\d,.]+)\s+(-?\$?[\d,.]+)\s+(-?\$?[\d,.]+)\s+(-?\$?[\d,.]+)\s+(-?\$?[\d,.]+)')
+        section_values_pattern2 = re.compile(r'([\w\s]+)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)\s+(-?\$[\d,.]*)')
+
+        room_performance_pattern = re.compile(r'([\w\s]+)\s+\$?([\d,.]+[%$]*)\s+\$?([\d,.]+[%$]*)\s+\$?([\d,.]+[%$]*)\s+\$?([\d,.]+[%$]*)\s+\$?([\d,.]+[%$]*)')
+        turn_away_pattern = re.compile(r'([\w\s]+)\s+\$?([\d,.]+)\s+\$?([\d,.]+)')
+        guest_ledger_pattern = re.compile(r'(In House Opening Balance:|In House Net Change:|In House Closing Balance:|Group Master Starting Balance:|Group Master Net Change:|Group Master Ending Balance:|House Account Opening Balance:|House Account Net Change:|House Account Closing Balance:|Total Closed Folio Opening Balance:|Total Closed Folio Net Change:|Total Closed Folio Closing Balance:)\s*(-?\$?[\d,.]+)')
+        direct_bill_balance_pattern = re.compile(r'(Direct Bill Opening Balance:|Direct Bill Net Change:|Direct Bill Closing Balance:)\s*(-?\$?[\d,.]+)')
+        advanced_deposit_pattern = re.compile(r'(Advance Deposit Opening Balance:|Advance Deposit Net Change:|Advance Deposit Closing Balance:|Group Master Opening Balance:|Group Master Net Change:|Group Master Closing Balance:)\s*(-?\$?[\d,.]+)')
+        hotel_balance_pattern = re.compile(r'(Beginning Balance:|Ending Balance:)\s*(-?\$?[\d,.]+)')
+
+        # Track the current section
+        current_section = None
+
+        # Open the PDF and process it
+        with pdfplumber.open(pdf_file) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                lines = text.split('\n')
+
+                for line in lines:
+                    line = line.strip()
+
+                    # Skip lines like "Page X of Y"
+                    if re.search(r'Page\s+\d+\s+of\s+\d+', line):
+                        continue
+
+                    # Extract top-level fields
+                    if date_range_match := date_range_pattern.search(line):
+                        data["Date Range"] = date_range_match.group(1).strip()
+                    elif hotel_run_date_match := hotel_run_date_pattern.search(line):
+                        data["Hotel ID"] = hotel_run_date_match.group(1).strip()
+                        data["Run Date"] = hotel_run_date_match.group(2).strip()
+                    elif night_time_match := night_time.search(line):
+                        data["Night Audit Time"] = night_time_match.group(1).strip()
+                    elif run_time_match := run_time_pattern.search(line):
+                        data["Run Time"] = run_time_match.group(1).strip()
+                    elif username_match := username_pattern.search(line):
+                        data["Username"] = username_match.group(1).strip()
+
+                    # Identify section headers
+                    if section_header_match := section_header_pattern.search(line):
+                        current_section = section_header_match.group(1) + " Breakdown"
+                        continue
+                     # Extract values for other sections
+                    if current_section and (section_values_match := section_values_pattern.search(line)):
+                        
+                        try:                     
+                            name = section_values_match.group(1).strip()
+                            actual_today = section_values_match.group(2).strip()
+                            adjusted = section_values_match.group(3).strip()
+                            net_today = section_values_match.group(4).strip()
+                            mtd = section_values_match.group(5).strip()
+                            lymtd = section_values_match.group(6).strip()
+                            variance = section_values_match.group(7).strip()
+                            ytd = section_values_match.group(8).strip()
+                            lytd = section_values_match.group(9).strip()
+                            var = section_values_match.group(10).strip()
+                            
+                            # Create a row-wise data entry
+                            row_data = {
+                                "Type": name,
+                                "Actual Today": actual_today,
+                                "Adjusted": adjusted,
+                                "Net Today": net_today,
+                                "M-T-D": mtd,
+                                "LY-M-T-D": lymtd,
+                                "Variance": variance,
+                                "Y-T-D": ytd,
+                                "LY-T-D": lytd,
+                                "second_Variance":var
+                                
+                            }
+
+                            # Append the row data to the correct section
+                            if current_section == "Revenue Breakdown":
+                                data["Revenue Breakdown"].append(row_data)
+                            elif current_section == "Charges Breakdown":
+                                data["Charges Breakdown"].append(row_data)
+                            elif current_section == "Cash Breakdown":
+                                data["Cash Breakdown"].append(row_data)
+                            elif current_section == "Card Breakdown":
+                                data["Card Breakdown"].append(row_data)
+                            elif current_section == "Other Breakdown":
+                                data["Other Breakdown"].append(row_data)
+                            elif current_section == "Direct Bill Breakdown":
+                                data["Direct Bill Breakdown"].append(row_data)
+                            # elif current_section == "Taxes Breakdown":
+                            #     print("Testing yes")
+                            #     data["Taxes Breakdown"].append(row_data)
+                                            
+                            #     data["Deposit Information Breakdown"].append(row_data)
+                            # elif current_section == "Cash Drop Information Breakdown":
+                            #     data["Cash Drop Information Breakdown"].append(row_data)
+                        except IndexError:
+                            print(f"Skipping line due to missing data: {line}")
+                            continue
+
+
+                    if current_section and (section_values_match3 := Taxes_section_values_pattern.search(line)):                                  
+                        try:                      
+                            name = section_values_match3.group(1).strip()
+                            actual_today = section_values_match3.group(2).strip()
+                            adjusted = section_values_match3.group(3).strip()
+                            net_today = section_values_match3.group(4).strip()
+                            mtd = section_values_match3.group(5).strip()
+                            lymtd = section_values_match3.group(6).strip()
+                            variance = section_values_match3.group(7).strip()
+                            ytd = section_values_match3.group(8).strip()
+                            lytd = section_values_match3.group(9).strip()
+                            var = section_values_match3.group(10).strip()
+                        
+                            # Create a row-wise data entry
+                            row_data = {
+                                "Type": name,
+                                "Actual Today": actual_today,
+                                "Adjusted": adjusted,
+                                "Net Today": net_today,
+                                "M-T-D": mtd,
+                                "LY-M-T-D": lymtd,
+                                "Variance": variance,
+                                "Y-T-D": ytd,
+                                "LY-T-D": lytd,
+                                "second_Variance":var
+                                
+                            }
+
+                        
+
+
+                        
+                            if current_section == "Taxes Breakdown":                           
+                                data["Taxes Breakdown"].append(row_data)
+                                                
+                            #     data["Deposit Information Breakdown"].append(row_data)
+                            # elif current_section == "Cash Drop Information Breakdown":
+                            #     data["Cash Drop Information Breakdown"].append(row_data)
+                        except IndexError:
+                            print(f"Skipping line due to missing data: {line}")
+                            continue
+
+
+
+
+                        
+
+                 
+
+                    
+                    if current_section and (section_values_match2 := section_values_pattern2.search(line)):                               
+                        try:                     
+                            name = section_values_match2.group(1).strip()
+                            actual_today = section_values_match2.group(2).strip() if section_values_match2.group(2) else ""
+                            adjusted = section_values_match2.group(3).strip() if section_values_match2.group(3) else ""
+                            net_today = section_values_match2.group(4).strip() if section_values_match2.group(4) else ""
+                            mtd = section_values_match2.group(5).strip() if section_values_match2.group(5) else ""                                      
+                        # Create a row-wise data entry
+                            row_data = {
+                                "Type": name,
+                                "Actual Today": actual_today,
+                                "Adjusted": adjusted,
+                                "Net Today": net_today,
+                                "M-T-D": mtd,
+                                
+                            }
+                            # Append the row data to the correct section                     
+                            if current_section == "Deposit Information Breakdown":
+                                data["Deposit Information Breakdown"].append(row_data)
+                            elif current_section == "Cash Drop Information Breakdown":
+                                data["Cash Drop Information Breakdown"].append(row_data)
+                        except IndexError:
+                            print(f"Skipping line due to missing data: {line}")
+                            continue 
+
+
+
+                                    # Handle Room Statistics section
+                    if "Room Statistics" in line:
+                        current_section = "Room Statistics"
+                        continue
+
+                    if current_section == "Room Statistics" and (room_stat_match := room_performance_pattern.search(line)):
+                        try:
+                            name = room_stat_match.group(1).strip()
+                            today = room_stat_match.group(2).strip()
+                            mtd = room_stat_match.group(3).strip()
+                            ytd = room_stat_match.group(4).strip()
+                            lymtd = room_stat_match.group(5).strip()
+                            lytd = room_stat_match.group(6).strip()
+
+                            room_stat_data = {
+                                "Type": name,
+                                "Today": today,
+                                "M-T-D": mtd,
+                                "Y-T-D": ytd,
+                                "LY-M-T-D": lymtd,
+                                "LY-T-D": lytd
+                            }
+
+                            data["Room Statistics"].append(room_stat_data)
+                        except IndexError:
+                            print(f"Skipping line due to missing data: {line}")
+                            continue
+
+
+
+
+
+                      # Handle Performance Statistics section
+                    if "Performance Statistics" in line:
+                        current_section = "Performance Statistics"
+                        continue
+
+                    if current_section == "Performance Statistics" and (perf_stat_match := room_performance_pattern.search(line)):
+                        try:
+                            name = perf_stat_match.group(1).strip()
+                            today = perf_stat_match.group(2).strip()
+                            mtd = perf_stat_match.group(3).strip()
+                            ytd = perf_stat_match.group(4).strip()
+                            lymtd = perf_stat_match.group(5).strip()
+                            lytd = perf_stat_match.group(6).strip()
+
+                            performance_stat_data = {
+                                "Type": name,
+                                "Today": today,
+                                "M-T-D": mtd,
+                                "Y-T-D": ytd,
+                                "LY-M-T-D": lymtd,
+                                "LY-T-D": lytd
+                            }
+
+                            data["Performance Statistics"].append(performance_stat_data)
+                        except IndexError:
+                            print(f"Skipping line due to missing data: {line}")
+                            continue
+
+
+
+
+                    # Handle Turn Away Information section
+                    if "Turn Away Information" in line:
+                        current_section = "Turn Away Information"
+                        continue
+
+                    if current_section == "Turn Away Information" and (turn_away_match := turn_away_pattern.search(line)):
+                        try:
+                            name = turn_away_match.group(1).strip()
+                            today = turn_away_match.group(2).strip()
+                            mtd = turn_away_match.group(3).strip()
+
+                            turn_away_data = {
+                                "Type": name,
+                                "Today": today,
+                                "M-T-D": mtd
+                            }
+
+                            data["Turn Away Information"].append(turn_away_data)
+                        except IndexError:
+                            print(f"Skipping line due to missing data: {line}")
+                            continue
+
+
+
+                    # Handle Guest Ledger Balance section
+                    if (guest_ledger_match := guest_ledger_pattern.search(line)):
+                        name = guest_ledger_match.group(1).strip()
+                        balance = guest_ledger_match.group(2).strip()
+
+                        data["Guest Ledger Balance"][name] = balance
+
+                    # Handle Direct Bill Balance section
+                    if (direct_bill_match := direct_bill_balance_pattern.search(line)):
+                        name = direct_bill_match.group(1).strip()
+                        balance = direct_bill_match.group(2).strip()
+
+                        data["Direct Bill Balance"][name] = balance
+
+                    # Handle Advanced Deposit Balance section
+                    if (advanced_deposit_match := advanced_deposit_pattern.search(line)):
+                        name = advanced_deposit_match.group(1).strip()
+                        balance = advanced_deposit_match.group(2).strip()
+
+                        data["Advanced Deposit Balance"][name] = balance
+
+                    # Handle Hotel Balance section
+                    if (hotel_balance_match := hotel_balance_pattern.search(line)):
+                        name = hotel_balance_match.group(1).strip()
+                        balance = hotel_balance_match.group(2).strip()
+
+                        data["Hotel Balance"][name] = balance
+
+                    
+
+                    
+
+        return data
+
+    def post(self, request, *args, **kwargs):
+        pdf_file = request.FILES.get('file', None)
+
+        if not pdf_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Call the extraction method
+            extracted_data = self.extract_data_from_pdf(pdf_file)
+            return Response(extracted_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
