@@ -213,14 +213,14 @@ class TaxExemptAPIView(APIView):
                     elif current_section.startswith("Exempt"):
                         if exemption_match := exemption_pattern.search(line):
                             exemption_data = {
-                                "Tax Exemption Code": "PERMANENT GUEST",  # As shown in the screenshot
-                                "Guest Name": exemption_match.group(1).strip(),
-                                "ARR": exemption_match.group(3).strip(),
-                                "Confirmation Number": exemption_match.group(2).strip(),
-                                "Exempt Rent": exemption_match.group(4).strip(),
-                                "Exempted Taxes": exemption_match.group(5).strip(),
-                                "Arrival Date": exemption_match.group(6).strip(),
-                                "Departure Date": exemption_match.group(7).strip()
+                                "Tax Exemption Code": exemption_match.group(1).strip(),  # As shown in the screenshot
+                                "Guest Name": exemption_match.group(2).strip(),
+                                "ARR": exemption_match.group(4).strip(),
+                                "Confirmation Number": exemption_match.group(3).strip(),
+                                "Exempt Rent": exemption_match.group(5).strip(),
+                                "Exempted Taxes": exemption_match.group(6).strip(),
+                                "Arrival Date": exemption_match.group(7).strip(),
+                                "Departure Date": exemption_match.group(8).strip()
                             }
                             if current_section == "Exempt CITY TAX":
                                 data["Exemptions"]["CITY TAX"].append(exemption_data)
