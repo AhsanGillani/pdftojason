@@ -140,7 +140,9 @@ class TaxExemptAPIView(APIView):
         tax_breakdown_pattern = re.compile(r'(CITY TAX|STATE TAX)\s+\$([\d,.]+)\s+(-?\$[\d,.]+)\s+\$([\d,.]+)\s+\$([\d,.]+)')
         
         # Pattern to capture the Exemptions table (Tax Exemption Code, Guest Name, etc.)
-        exemption_pattern = re.compile(r'(PERMANENT GUEST|OTHERS)\s+([A-Za-z\s]+)\s+([A-Z0-9]+)\s+\$([\d,.]+)\s+\$([\d,.]+)\s+\$([\d,.]+)\s+([A-Za-z]{3}\s+\d{2},\s+\d{4})\s+([A-Za-z]{3}\s+\d{2},\s+\d{4})')
+        exemption_pattern =re.compile(r'(PERMANENT GUEST|OTHERS)\s+([A-Za-z\s]+)\s+([A-Z0-9]+)\s+(\$[\d,.]+)\s+(\$[\d,.]+)\s+(\$[\d,.]+)\s+([A-Za-z]{3}\s+\d{2},\s+\d{4})\s+([A-Za-z]{3}\s+\d{2},\s+\d{4})')
+        #OLD RE STATEMENT
+        #re.compile(r'(PERMANENT GUEST|OTHERS)\s+([A-Za-z\s]+)\s+([A-Z0-9]+)\s+\$([\d,.]+)\s+\$([\d,.]+)\s+\$([\d,.]+)\s+([A-Za-z]{3}\s+\d{2},\s+\d{4})\s+([A-Za-z]{3}\s+\d{2},\s+\d{4})')
 
         current_section = None  # Keep track of the current section to collect data across pages
 
