@@ -766,6 +766,116 @@ class OccupancyForecastAPIView(APIView):
 
 
 
+class RateTypeTrackingAPIView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def extract_rate_type_data(self, pdf_file):
+        # Initialize the dictionary to hold extracted data
+        data = {
+            "Date Range": "",
+            "Run Date": "",
+            "Run Time": "",
+            "Username": "",
+            "Hotel ID": "0535",  # Hardcoded based on your input
+            "Date": [],
+            "M-T-D": [],
+            "Y-T-D": []
+        }
+
+        # Regular expressions to match the file-level parameters
+        date_range_pattern = re.compile(r'Date\s*:\s*(.*)')
+        run_date_pattern = re.compile(r'Report run date\s*:\s*(.*)')
+        run_time_pattern = re.compile(r'Report run time\s*:\s*(.*)')
+        username_pattern = re.compile(r'User\s*:\s*(.*)')
+
+        current_section = None  # Variable to track the current section (Date, M-T-D, Y-T-D)
+        
+        # Open the PDF and process it
+        with pdfplumber.open(pdf_file) as pdf:
+            for page in pdf.pages:
+                # Extract page text for file-level parameters
+                text = page.extract_text()
+                lines = text.split('\n')
+
+                # Extract file-level parameters
+                for line in lines:
+                    if date_range_match := date_range_pattern.search(line):
+                        data["Date Range"] = date_range_match.group(1).strip()
+                    if run_date_match := run_date_pattern.search(line):
+                        data["Run Date"] = run_date_match.group(1).strip()
+                    if run_time_match := run_time_pattern.search(line):
+                        data["Run Time"] = run_time_match.group(1).strip()
+                    if username_match := username_pattern.search(line):
+                        data["Username"] = username_match.group(1).strip()
+
+                # Extract the tables from the page
+                tables = page.extract_tables()
+
+                # Process each table separately
+                for table in tables:
+                    # Skip if the table is empty or malformed
+                    if not table or len(table) <= 1:
+                        continue
+                    
+                    # Identify which section (Date, M-T-D, Y-T-D) we are processing
+                    for row in table:
+                        # Check for headers that signify new sections
+                        if any("Date" in cell for cell in row if cell):
+                            current_section = "Date"        
+                            continue
+                        elif any("M-T-D" in cell for cell in row if cell):
+                            current_section = "M-T-D"              
+                            continue
+                        elif any("Y-T-D" in cell for cell in row if cell):
+                            current_section = "Y-T-D"
+                            continue
+
+                        # Skip header rows
+                        if "Rate Type" in row[0]:
+                            continue
+
+                        # Capture the data from the table rows (ensure correct number of columns)
+                        if len(row) >= 15:
+                            row_data = {
+                                "Rate Type": row[0],
+                                "Room Nights Current Year": row[1],
+                                "Room Nights Previous Year": row[2],
+                                "Room Nights Variance": row[3],
+                                "Adult Count Current Year": row[4],
+                                "Adult Count Previous Year": row[5],
+                                "Adult Count Variance": row[6],
+                                "Room Revenue Current Year": row[7],
+                                "Room Revenue Previous Year": row[8],
+                                "Room Revenue Variance": row[9],
+                                "Average Daily Rate Current Year": row[10],
+                                "Average Daily Rate Previous Year": row[11],
+                                "Average Daily Variance": row[12],
+                                "Volume Current Year": row[13],
+                                "Volume Previous Year": row[14]
+                            }
+
+                            # Append the row data to the corresponding section
+                            if current_section == "Date":
+                                data["Date"].append(row_data)
+                            elif current_section == "M-T-D":
+                                data["M-T-D"].append(row_data)
+                            elif current_section == "Y-T-D":
+                                data["Y-T-D"].append(row_data)
+
+        return data
+
+    def post(self, request, *args, **kwargs):
+        pdf_file = request.FILES.get('file', None)
+
+        if not pdf_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Call the extraction method
+            extracted_data = self.extract_rate_type_data(pdf_file)
+            return Response(extracted_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
