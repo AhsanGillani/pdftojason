@@ -686,5 +686,87 @@ class FinalAuditAPIView(APIView):
 
 
 
+class OccupancyForecastAPIView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def extract_occupancy_data(self, pdf_file):
+        # Initialize the dictionary to hold extracted data
+        data = {
+            "Date Range": "",
+            "Run Date": "",
+            "Run Time": "",
+            "Username": "",
+            "Hotel ID": "0535",
+            "Occupancy Forecast and History": []
+        }
+
+        # Regular expressions to match the file-level parameters
+        date_range_pattern = re.compile(r'Date Range\s*:\s*(.*)')
+        run_date_pattern = re.compile(r'Report run date\s*:\s*(.*)')
+        run_time_pattern = re.compile(r'Report run time\s*:\s*(.*)')
+        username_pattern = re.compile(r'User\s*:\s*(.*)')
+
+        # Open the PDF and process it
+        with pdfplumber.open(pdf_file) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                lines = text.split('\n')
+
+                # Extract file-level parameters
+                for line in lines:
+                    if date_range_match := date_range_pattern.search(line):
+                        data["Date Range"] = date_range_match.group(1).strip()
+                    if run_date_match := run_date_pattern.search(line):
+                        data["Run Date"] = run_date_match.group(1).strip()
+                    if run_time_match := run_time_pattern.search(line):
+                        data["Run Time"] = run_time_match.group(1).strip()
+                    if username_match := username_pattern.search(line):
+                        data["Username"] = username_match.group(1).strip()
+
+                # Extract the table data
+                table = page.extract_table()
+
+                if table:
+                    # Skip the first row which contains headers
+                    for row in table[2:]:
+                        if len(row) == 14:  # Ensure correct number of columns
+                            occupancy_data = {
+                                "Date": row[0],
+                                "Day Of Week": row[1],
+                                "Confirmed Revenue": row[2],
+                                "Allocation Revenue": row[3],
+                                "Total Rooms": row[4],
+                                "Sold Rooms": row[5],
+                                "OOO": row[6],
+                                "Available Rooms": row[7],
+                                "Arrivals": row[8],
+                                "Guaranteed": row[9],
+                                "Non Guaranteed": row[10],
+                                "Stay Overs": row[11],
+                                "Departures": row[12],
+                                "ADR": row[13]
+                            }
+                            data["Occupancy Forecast and History"].append(occupancy_data)
+
+        return data
+
+    def post(self, request, *args, **kwargs):
+        pdf_file = request.FILES.get('file', None)
+
+        if not pdf_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Call the extraction method
+            extracted_data = self.extract_occupancy_data(pdf_file)
+            return Response(extracted_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
 
 
