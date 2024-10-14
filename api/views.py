@@ -849,12 +849,14 @@ class OccupancyForecastAPIView(APIView):
     def extract_occupancy_data(self, pdf_file):
         # Initialize the dictionary to hold extracted data
         data = {
-            "Date Range": "",
+             "Date Range": "",
             "Run Date": "",
             "Run Time": "",
             "Username": "",
-            "Hotel ID": "0535",
-            "Occupancy Forecast and History": []
+            "Hotel id": "",
+            "Occupancy Forecast and History": [],
+            "Occupancy Forecast and History for FTWAA": [],
+            "Occupancy Forecast and History for Hampton": []
         }
 
         # Regular expressions to match the file-level parameters
@@ -865,6 +867,7 @@ class OccupancyForecastAPIView(APIView):
 
         # Open the PDF and process it
         with pdfplumber.open(pdf_file) as pdf:
+            kl=1
             for page in pdf.pages:
                 text = page.extract_text()
                 lines = text.split('\n')
@@ -880,14 +883,29 @@ class OccupancyForecastAPIView(APIView):
                     if username_match := username_pattern.search(line):
                         data["Username"] = username_match.group(1).strip()
 
-                # Extract the table data
-                table = page.extract_table()
 
-                if table:
-                    # Skip the first row which contains headers
-                    for row in table[2:]:
-                        if len(row) == 14:  # Ensure correct number of columns
-                            occupancy_data = {
+                # Extract tables
+                tables = page.extract_tables()
+            
+            # Iterate over tables
+                for table in tables:
+                # Skip if the table is empty or malformed
+                    if not table or len(table) <= 1:
+                    
+                        continue
+
+                # Use the header row for checks
+                #print(table)
+               
+                    header = table[kl]  # Assuming the second row contains the headers
+                    print(header)
+                
+
+                    if header[-1] == "ADR":
+                    
+                        for row in table[2:]:
+                            if len(row) == 14:  # Ensure correct number of columns
+                                occupancy_data = {
                                 "Date": row[0],
                                 "Day Of Week": row[1],
                                 "Confirmed Revenue": row[2],
@@ -903,8 +921,56 @@ class OccupancyForecastAPIView(APIView):
                                 "Departures": row[12],
                                 "ADR": row[13]
                             }
-                            data["Occupancy Forecast and History"].append(occupancy_data)
+                                data["Hotel id"] = "0535"
+                                data["Occupancy Forecast and History"].append(occupancy_data)
 
+                    elif header[-1] == "Children":
+                        for row in table[2:]:
+                            if len(row) == 15:  # Ensure correct number of columns
+                                occupancy_data = {
+                                "Date": row[0],
+                                "Day Of Week": row[1],
+                                "Confirmed Revenue": row[2],
+                                "Total Rooms": row[3],
+                                "Sold Rooms": row[4],
+                                "Rooms Sold Excluding Complimentary And House Room": row[5],
+                                "OOO": row[6],
+                                "Available Rooms": row[7],
+                                "Arrivals": row[8],
+                                "Guaranteed": row[9],
+                                "Non Guaranteed": row[10],
+                                "Stay Overs": row[11],
+                                "Departures": row[12],
+                                "Adults": row[13],
+                                "Children": row[14],
+                            }
+                                data["Hotel id"] = "FTWCL"
+                                data["Occupancy Forecast and History for Hampton"].append(occupancy_data)
+
+                    elif header[-2] == "Guaranteed":
+                        for row in table[2:]:
+                            if len(row) == 15:  # Ensure correct number of columns
+                                occupancy_data = {
+                                "Date": row[0],
+                                "Day Of Week": row[1],
+                                "Confirmed Revenue": row[2],
+                                "Allocation Revenue": row[3],
+                                "Total Revenue": row[4],
+                                "Total Rooms": row[5],
+                                "Sold Rooms": row[6],
+                                "Rooms Sold Excluding Complimentary And House Rooms": row[7],
+                                "OOO": row[8],
+                                "Available Rooms": row[9],
+                                "Group Allocation": row[10],
+                                "Group Rooms Picked Up": row[11],
+                                "Arrivals": row[12],
+                                "Guaranteed": row[13],
+                                "Non Guaranteed": row[14],
+                            }
+                                data["Hotel id"] = "FTWAA"
+                                data["Occupancy Forecast and History for FTWAA"].append(occupancy_data)
+
+                kl=0
         return data
 
     def post(self, request, *args, **kwargs):
