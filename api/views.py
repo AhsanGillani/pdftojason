@@ -519,8 +519,10 @@ class FinalAuditAPIView(APIView):
         }
 
         # Regular expressions for top-level fields
-        date_range_pattern = re.compile(r'LONESTAR INN\s+Date\s*:\s*([\w]+\s+\d{2},\s+\d{4})')
-        hotel_run_date_pattern = re.compile(r'Hotel ID\s*:\s*(\d+)\s+Run Date\s*:\s*([\w\s,]+)')
+        date_range_pattern = date_range_pattern = re.compile(r'(?:Hampton Inn and Suites by|LONESTAR INN|Hilton Garden Inn Fort Worth)\s+Date\s*:\s*([\w]+\s+\d{2},\s+\d{4})')
+
+
+        hotel_run_date_pattern = re.compile(r'Hotel ID\s*:\s*(\w+)\s+Run Date\s*:\s*([\w\s,]+)')
         run_time_pattern = re.compile(r'Run Time\s*:\s*(.*)')
         night_time = re.compile(r'Night Audit Time\s*:\s*(.*)')
         username_pattern = re.compile(r'Username\s*:\s*(.*)')
