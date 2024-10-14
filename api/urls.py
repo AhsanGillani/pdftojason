@@ -5,6 +5,7 @@ from .views import ClerkActivityAPIView
 from .views import FinalAuditAPIView
 from .views import OccupancyForecastAPIView
 from .views import RateTypeTrackingAPIView
+from .views import AccountActivity
 urlpatterns = [
 
     path('extract/', PDFExtractAPIView.as_view(), name='extract_pdf'),
@@ -13,6 +14,7 @@ urlpatterns = [
     path('final-audit-extract/', FinalAuditAPIView.as_view(), name='final-audit-extract'),
     path('occupancy-forecast/', OccupancyForecastAPIView.as_view(), name='occupancy_forecast'),
     path('rate-type-tracking/', RateTypeTrackingAPIView.as_view(), name='rate_type_tracking'),
+    path('Payment-Activity/', AccountActivity.as_view(), name='Payment_Activity'),
     
     
 
