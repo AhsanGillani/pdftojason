@@ -23,16 +23,41 @@ class PDFExtractAPIView(APIView):
             "Run Time": "",
             "Username": "",
             "Charge Type": "",
-            "CITY TAX": [],
+            "GUEST ROOM":[],
+            "EXTRA PERSON": [],
+            "INTERNET ACCESS":[],
+            "MISC SALES TAX": [],
+            "RM CITY TAX": [],
+            "RM STATE TAX": [],
+            "SUITE SHOP": [],
+            "TEXAS RECOVERY FEE": [],
+            "GUEST ROOM HONORS":[],
             "ROOM RENT": [],
-            "STATE TAX": []
+            "PAVILION PANTRY FOOD": [],
+            "GARDEN GRILL BAR BEER": [],
+            "GARDEN GRILL BAR BEV":[],
+            "GARDEN GRILL BAR BFAST": [],
+            "GARDEN GRILL BAR FOOD DISC":[],
+            "GARDEN GRILL & BAR LIQUOR":[],
+            "GARDEN GRILL & BAR DINNER":[],
+            "GARDEN GRILL BAR TIPS":[],
+            "GARDEN GRILL BAR WINE":[],
+            "HHONORS WATER":[],
+            "FB TAX":[],
+            "FORT WORTH TOURISM PID FEE":[],
+            "Hilton Honors Daily F&B Credit":[],
+            "MISC REVENUE - NON-TAXABLE":[],
+            "PET FEE":[],
+            "PREMIUM INTERNET ACCESS":[],
+            "RESTAURANT BEER":[],
+            "VENUE HOTEL OCCUPANCY TAX":[],
         }
 
         section = None
 
         # Regular expressions for extracting the top-level info
         date_range_pattern = re.compile(r'Date Range\s*:\s*(.*)')
-        hotel_run_date_pattern = re.compile(r'Hotel ID\s*:\s*(\d+)\s+Run Date\s*:\s*([\w\s,]+)')
+        hotel_run_date_pattern = re.compile(r'Hotel ID\s*:\s*(\w+)\s+Run Date\s*:\s*([\w\s,]+)')
         run_time_pattern = re.compile(r'Run Time\s*:\s*(.*)')
         username_pattern = re.compile(r'Username\s*:\s*(.*)')
         charge_type_pattern = re.compile(r'Charge Type\s*:\s*(.*)')
@@ -59,21 +84,152 @@ class PDFExtractAPIView(APIView):
                     elif charge_type_match := charge_type_pattern.search(line):
                         file_parameters["Charge Type"] = charge_type_match.group(1).strip()
 
-                    # Identify sections
-                    if "CITY TAX" in line:
-                        section = "CITY TAX"
+                       # Identify sections
+                    if "CITY TAX" in line and "EXTRA"  not in line.split() and "FB"  not in line.split():
+                        section = "RM CITY TAX"
                         continue  # Skip the header
                     elif "ROOM RENT" in line:
                         section = "ROOM RENT"
                         continue  # Skip the header
-                    elif "STATE TAX" in line:
-                        section = "STATE TAX"
+                    elif "STATE TAX" in line :
+                        section = "RM STATE TAX"
                         continue  # Skip the header
+
+                    elif "SUITE SHOP" in line:
+                        section = "SUITE SHOP"
+                        continue  # Skip the header
+
+                    elif "TEXAS RECOVERY FEE" in line not in line.split() and "PET"  not in line.split() not in line.split() and "TOURISM"  not in line.split():
+                        section = "TEXAS RECOVERY FEE"
+                        continue  # Skip the header
+
+
+                    elif "PAVILION PANTRY FOOD" in line:              
+                        section = "PAVILION PANTRY FOOD"
+                        continue  # Skip the heade
+
+                    elif "FB TAX" in line and "CITY"  not in line.split():
+                        section = "FB TAX"
+                        continue  # Skip the header
+
+                    elif "FORT WORTH TOURISM PID FEE" in line and "RECOVERY"  not in line.split() and "PET"  not in line.split():                   
+                        section = "FORT WORTH TOURISM PID FEE"
+                        continue  # Skip the header
+
+                    
+
+                    elif "GUEST ROOM" in line and "HONORS" not in line.split() and "RENT" not in line.split():
+                        section = "GUEST ROOM"                       
+                        continue  # Skip the header
+
+
+                    elif "INTERNET ACCESS" in line and "PREMIUM" not in line.split():
+                        section = "INTERNET ACCESS"
+                        
+                        continue  # Skip the header
+                    elif "HONORS" in line and "WATER" not in line.split():
+                        section = "GUEST ROOM HONORS"
+                    
+                        continue  # Skip the header
+
+                    elif "MISC SALES TAX" in line or "MIS SALES TAX" in line:
+                        section = "MISC SALES TAX"
+                        continue  # Skip the header
+
+                    elif "ROOM RENT" in line and "EXTRA"  not in line.split():
+                        section = "ROOM RENT"
+                        continue  # Skip the header
+
+                    elif "EXTRA" in line:
+                        section = "EXTRA PERSON"
+                        continue  # Skip the heade
+                   
+
+                    elif "GARDEN GRILL & BAR BEER" in line and "BEV" not in line.split() and "BFAST" not in line.split():                       
+                        section = "GARDEN GRILL BAR BEER"
+                        continue  # Skip the heade
+
+
+                    elif "GARDEN GRILL & BAR BEV" in line and "BEER" not in line.split() and "BFAST" not in line.split():                 
+                        section = "GARDEN GRILL BAR BEV"
+                        continue  # Skip the heade
+
+
+                    elif "GARDEN GRILL & BAR BFAST" in line and "BEER" not in line.split() and "BEV" not in line.split() and "DINNER" not in line.split():                        
+                        section = "GARDEN GRILL BAR BFAST"
+                        continue  # Skip the heade
+
+
+                    elif "DINNER" in line and "BEER" not in line.split() and "BEV" not in line.split():               
+                        section = "GARDEN GRILL & BAR DINNER"
+                        continue  # Skip the heade
+                    
+
+                    elif "DISC" in line and "BEER" not in line.split() and "BEV" not in line.split():                     
+                        section = "GARDEN GRILL BAR FOOD DISC"
+                        continue  # Skip the heade
+
+
+                    elif "LIQUOR" in line and "BEER" not in line.split() and "BEV" not in line.split():                                      
+                        section = "GARDEN GRILL & BAR LIQUOR"
+                        continue  # Skip the heade
+
+
+                    elif "TIPS" in line and "BEER" not in line.split() and "BEV" not in line.split():               
+                        section = "GARDEN GRILL BAR TIPS"
+                        continue  # Skip the heade
+
+
+                    elif "WINE" in line and "BEER" not in line.split() and "BEV" not in line.split():                      
+                        section = "GARDEN GRILL BAR WINE"
+                        continue  # Skip the heade
+ 
+                    elif "HHONORS WATER" in line and "Credit" not in line.split():                                           
+                        section = "HHONORS WATER"
+                        continue  # Skip the heade
+
+
+                    elif "Hilton Honors Daily F&B Credit" in line and "WATER" not in line.split():
+                        
+                        section = "Hilton Honors Daily F&B Credit"
+                        continue  # Skip the heade
+
+
+                    elif "MISC REVENUE - NON-TAXABLE" in line and "MIS" not in line.split() and "SALES" not in line.split():                       
+                        section = "MISC REVENUE - NON-TAXABLE"
+                        continue  # Skip the heade
+
+
+                    elif "PET FEE" in line and "TOURISM" not in line.split() and "PID" not in line.split():                      
+                        section = "PET FEE"
+                        continue  # Skip the heade
+
+                    elif "PREMIUM INTERNET ACCESS" in line:                       
+                        section = "PREMIUM INTERNET ACCESS"
+                        continue  # Skip the heade
+
+
+                    elif "RESTAURANT BEER" in line and "GARDEN" not in line.split():
+                      
+                        section = "RESTAURANT BEER"
+                        continue  # Skip the heade
+
+                    elif "VENUE HOTEL OCCUPANCY TAX" in line and "CITY" not in line.split() and "STATE" not in line.split():                  
+                        section = "VENUE HOTEL OCCUPANCY TAX"
+                        continue  # Skip the heade
+
+
+
+
+
+
+
+                    
 
                     # Process lines with known section and valid date format (e.g., Sep 06, 2024)
                     if section and re.search(r'\b\w+ \d{2}, \d{4}', line):
                         # Regular expression to capture the columns
-                        match = re.match(r'(\w+ \d{2}, \d{4})\s+(\w+)\s+([\w\s]+)\s+(\d+)\s+([-\$?\d.,]+)', line)
+                        match =re.match(r'(\w+ \d{2}, \d{4})\s+([A-Za-z0-9]+)\s+([A-Za-z\s&-()]+)\s+([A-Za-z0-9/]+)\s+([-\$?\d.,]+)', line)
                         if match:
                             date, transaction_number, guest_name, room_number, amount = match.groups()
 
@@ -686,6 +842,7 @@ class FinalAuditAPIView(APIView):
 
 
 
+
 class OccupancyForecastAPIView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -762,6 +919,10 @@ class OccupancyForecastAPIView(APIView):
             return Response(extracted_data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
 
 
 
@@ -876,7 +1037,3 @@ class RateTypeTrackingAPIView(APIView):
             return Response(extracted_data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-
