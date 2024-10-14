@@ -1231,3 +1231,105 @@ class AccountActivity(APIView):
             return Response(extracted_data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+class Rateplansummary(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def extract_rate_type_data(self, pdf_file):
+        # Initialize the dictionary to hold extracted data
+        data = {
+             "Date Range": "",
+            "Run Date": "",
+            "Run Time": "",
+            "Username": "",
+            "Hotel ID": "FTWAA",  # Hardcoded based on your input
+            "Rate Plan Summary": [],
+        }
+
+        # Regular expressions to match the file-level parameters
+        date_range_pattern = re.compile(r'Date Range\s*:\s*(.*)')
+        run_date_pattern = re.compile(r'Report run date\s*:\s*(.*)')
+        run_time_pattern = re.compile(r'Report run time\s*:\s*(.*)')
+        username_pattern = re.compile(r'User\s*:\s*(.*)')
+
+        current_section = None  # Variable to track the current section (Date, M-T-D, Y-T-D)
+        
+        # Open the PDF and process it
+        with pdfplumber.open(pdf_file) as pdf:
+            for page in pdf.pages:
+                # Extract page text for file-level parameters
+                text = page.extract_text()
+                lines = text.split('\n')
+
+                # Extract file-level parameters
+                for line in lines:
+                    if date_range_match := date_range_pattern.search(line):
+                        data["Date Range"] = date_range_match.group(1).strip()
+                    if run_date_match := run_date_pattern.search(line):
+                        data["Run Date"] = run_date_match.group(1).strip()
+                    if run_time_match := run_time_pattern.search(line):
+                        data["Run Time"] = run_time_match.group(1).strip()
+                    if username_match := username_pattern.search(line):
+                        data["Username"] = username_match.group(1).strip()
+
+                # Extract the tables from the page
+                tables = page.extract_tables()
+
+                # Process each table separately
+                for table in tables:
+                    # Skip if the table is empty or malformed
+                    if not table or len(table) <= 1:
+                        continue
+                    
+                   
+                # Identify which section (Reservation, House Accounts) we are processing
+                for row in table:
+                    # Check for headers that signify new sections
+                    if any("Rate Plan Summary" in cell for cell in row if cell):
+                        current_section = "Rate Plan Summary"        
+                        continue
+        
+                    
+                    # Skip the row if it contains headers like "Date", "Time", etc.
+                    if row[0] is not None and "Date" in row[0] or row[1] is not None and "Day Of Week" in row[1]:
+                        continue
+
+                    # Capture the data from the table rows (ensure correct number of columns)
+                    if len(row) >= 10:
+                        row_data = {
+                            "Date": row[0],
+                            "Day Of Week": row[1],
+                            "Rate Plan": row[2].replace('\n', '').strip(),
+                            "Rate Plan Code": row[3].replace('\n', '').strip(),
+                            "Market Segment": row[4].replace('\n', '').strip(),
+                            "Revenue": row[5],
+                            "Stays": row[6],
+                            "ADR": row[7],
+                            "Occupancy Contribution": row[8],
+                            "RevPAR Contribution": row[9],
+                        }
+
+                
+                        if current_section == "Rate Plan Summary":
+                            data["Rate Plan Summary"].append(row_data)
+                     
+
+        return data
+
+    def post(self, request, *args, **kwargs):
+        pdf_file = request.FILES.get('file', None)
+
+        if not pdf_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Call the extraction method
+            extracted_data = self.extract_rate_type_data(pdf_file)
+            return Response(extracted_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
