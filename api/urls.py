@@ -8,6 +8,9 @@ from .views import RateTypeTrackingAPIView
 from .views import AccountActivity
 from .views import Rateplansummary
 from .views import Adjustmentandrefund
+from .views import Directbilagging
+
+
 
 urlpatterns = [
 
@@ -20,6 +23,10 @@ urlpatterns = [
     path('Payment-Activity/', AccountActivity.as_view(), name='Payment_Activity'),
     path('Rate-Plan-Summary/', Rateplansummary.as_view(), name='Rate_Plan_Summary'),
     path('adjustment-plan/', Adjustmentandrefund.as_view(), name='adjustment_plan'),
+    path('Direct-Bill-Agging/', Directbilagging.as_view(), name='Direct_Bill_Agging'),
+
+
+
     
 
 
