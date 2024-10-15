@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from django.shortcuts import render
-
+from datetime import datetime
 
 def index(request):
     return render(request, 'index.html')
@@ -1556,3 +1556,104 @@ class Directbilagging(APIView):
             return Response(extracted_data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+# Custom JSON encoder to handle non-serializable objects
+class CustomEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, datetime):
+            return o.strftime('%Y-%m-%d %H:%M:%S')
+        return super().default(o)
+
+class Rateplansummaryhampton(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def extract_data_from_excel(self, file):
+        try:
+            # Load the Excel file
+            df = pd.read_excel(file, header=None)
+        except Exception as e:
+            raise ValueError(f"Error reading Excel file: {str(e)}")
+
+        hotelid = df.iloc[1, 0] if pd.notna(df.iloc[1, 0]) else ""
+        df = df.drop(df.columns[0], axis=1)  # Drop the first column
+
+        # Dynamically extract the Date Range, Run Date, Run Time, and Username
+        date_range = df.iloc[0, 7].replace("Date Range: ", "") if pd.notna(df.iloc[0, 7]) else ""
+        run_date = df.iloc[1, 7].replace("Report run date: ", "") if pd.notna(df.iloc[1, 7]) else ""
+        run_time = df.iloc[2, 7].replace("Report run time: ", "") if pd.notna(df.iloc[2, 7]) else ""
+        username = df.iloc[3, 7] if pd.notna(df.iloc[3, 7]) else ""
+
+        
+
+        # Initialize the data structure
+        data = {
+            "Date Range": date_range,  
+            "Run Date": run_date, 
+            "Run Time": run_time,
+            "Username": username,  
+            "Hotel Id": hotelid,
+            "Rate Plan Summary": [],
+        }
+
+        # Helper function to extract data from each section
+        def extract_section_data(df, start_row):
+            transactions = []
+            for i in range(start_row, df.shape[0]):
+                # Stop if the Grand Total is reached or the next section is detected
+                if pd.isna(df.iloc[i, 0]) or 'Grand Total' in str(df.iloc[i, 0]):
+                    break
+
+                # Extract transaction details, ensuring there are no NaN values
+                transaction = {
+                    "Date": df.iloc[i, 0].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 0], datetime) else df.iloc[i, 0],
+                    "Day Of Week": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else "",
+                    "Rate Plan": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else "",
+                    "Rate Plan Code": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else "",
+                    "Market Segment": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else "",
+                    "Revenue": df.iloc[i, 5] if not pd.isna(df.iloc[i, 5]) else "",
+                    "Stays": df.iloc[i, 6] if not pd.isna(df.iloc[i, 6]) else "",
+                    "ADR": df.iloc[i, 7] if not pd.isna(df.iloc[i, 7]) else "",
+                    "Occupancy": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else "",
+                    "RevPAR Contribution": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else ""
+                }
+                transactions.append(transaction)
+            return transactions
+
+        # Function to locate the start of each section
+        def find_section_start(df, section_name):
+            for i in range(df.shape[0]):
+                # Convert the cell to a string, strip extra spaces, and handle NaN
+                cell_value = str(df.iloc[i, 0]).strip() if not pd.isna(df.iloc[i, 0]) else ''
+                if cell_value.lower() == section_name.lower():
+                    return i + 2  # Skip the header row (Date, Time, etc.)
+            return None
+
+        # Identify where the Rate Plan Summary starts
+        rate_plan = find_section_start(df, 'Rate Plan Summary')
+
+        # Extract data for each section if the section exists
+        if rate_plan is not None:
+            data["Rate Plan Summary"] = extract_section_data(df, rate_plan)
+
+        # Return the extracted data as JSON
+        return data
+
+    def post(self, request, *args, **kwargs):
+        excel_file = request.FILES.get('file', None)
+
+        if not excel_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Call the extraction method
+            extracted_data = self.extract_data_from_excel(excel_file)
+            return Response(extracted_data, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
