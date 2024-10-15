@@ -487,7 +487,6 @@ class ClerkActivityAPIView(APIView):
 
 
 
-
 class FinalAuditAPIView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -992,9 +991,6 @@ class OccupancyForecastAPIView(APIView):
 
 
 
-
-
-
 class RateTypeTrackingAPIView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -1105,12 +1101,6 @@ class RateTypeTrackingAPIView(APIView):
             return Response(extracted_data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-
-
-
 
 
 
@@ -1235,8 +1225,6 @@ class AccountActivity(APIView):
 
 
 
-
-
 class Rateplansummary(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -1338,9 +1326,6 @@ class Rateplansummary(APIView):
 
 
 
-
-
-
 class Adjustmentandrefund(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -1351,7 +1336,7 @@ class Adjustmentandrefund(APIView):
             "Run Date": "",
             "Run Time": "",
             "Username": "",
-            "Hotel ID": "FTWAA",  # Hardcoded based on your input
+            "Hotel ID": "",  # Hardcoded based on your input
             "Adjustments": [],
             "Adjustment Summary": [],
         }
@@ -1443,6 +1428,118 @@ class Adjustmentandrefund(APIView):
                                 data["Adjustments"].append(row_data)
                             elif current_section == "Adjustment Summary":
                                 data["Adjustment Summary"].append(row_data)
+                     
+
+        return data
+
+    def post(self, request, *args, **kwargs):
+        pdf_file = request.FILES.get('file', None)
+
+        if not pdf_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Call the extraction method
+            extracted_data = self.extract_rate_type_data(pdf_file)
+            return Response(extracted_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+class Directbilagging(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def extract_rate_type_data(self, pdf_file):
+        # Initialize the dictionary to hold extracted data
+        data = {
+            "Date Range": "",
+            "Run Date": "",
+            "Run Time": "",
+            "Username": "",
+            "Hotel ID": "",  # Hardcoded based on your input
+            "Accounts Receivables": [],
+            "Invoices": [],
+        }
+
+        # Regular expressions to match the file-level parameters
+        date_range_pattern =re.compile(r'Date\s*:\s*(.*)')
+        run_date_pattern = re.compile(r'(\bFTW[A-Z]+\b)\s*Report run date\s*:\s*(.*)')
+        run_time_pattern = re.compile(r'Report run time\s*:\s*(.*)')
+        username_pattern = re.compile(r'User\s*:\s*(.*)')
+        adjustment_summary_headers = ["Type", "Name", "User", "Adjusted Amount", "Adjusted Tax"]    
+        current_section = None  # Variable to track the current section (Date, M-T-D, Y-T-D)
+        
+        # Open the PDF and process it
+        with pdfplumber.open(pdf_file) as pdf:
+            for page in pdf.pages:
+                # Extract page text for file-level parameters
+                text = page.extract_text()
+                lines = text.split('\n')
+
+                # Extract file-level parameters
+                for line in lines:
+                    if date_range_match := date_range_pattern.search(line):
+                        data["Date Range"] = date_range_match.group(1).strip()
+                    if run_date_match := run_date_pattern.search(line):
+                        data["Hotel ID"]=run_date_match.group(1).strip()
+                        data["Run Date"] = run_date_match.group(2).strip()
+                    if run_time_match := run_time_pattern.search(line):
+                        data["Run Time"] = run_time_match.group(1).strip()
+                    if username_match := username_pattern.search(line):
+                        data["Username"] = username_match.group(1).strip()
+
+                # Extract the tables from the page
+                tables = page.extract_tables()
+
+                for table in tables:
+                # Skip if the table is empty or malformed
+                    if not table or len(table) <= 1:
+                        continue
+                
+                # Identify which section (Adjustments or Adjustment Summary) we are processing
+                    for row in table:
+                    # Check for headers that signify new sections
+                        if any("Accounts Receivables" in cell for cell in row if cell) and not any("Invoices" in cell for cell in row if cell):
+                            current_section = "Accounts Receivables"
+                            continue
+                        elif any("Invoices" in cell for cell in row if cell):
+                            current_section = "Invoices"
+                            continue
+                    
+                    # # Skip the row if it matches the headers (for Adjustment Summary)
+                    # if current_section == "Adjustment Summary" and row[:5] == adjustment_summary_headers:
+                    #     continue
+                    
+                    # Skip the row if it contains headers like "Date", "Time", etc.
+                        if row[0] is not None and "Company Name" in row[0] or row[1] is not None and "Company Code" in row[1]:
+                            continue  # This is the header row, so skip it
+
+                    # Initialize row_data and capture the data from the table rows
+                        row_data = None
+
+                        if len(row) == 9:
+                            row_data = {
+                                "Company Name": row[0],
+                                " Company Code": row[1],
+                                "Current": row[2],
+                                "Over 30": row[3].replace('\n', '').strip(),
+                                "Over 60": row[4].replace('\n', '').strip(),
+                                "Over 90": row[5],
+                                "Over 120 Days": row[6],
+                                "Over 150": row[7],
+                                "Total": row[8],
+                         
+                        }
+
+                    # Only append row_data if it's been populated
+                        if row_data:
+                            if current_section == "Accounts Receivables":
+                                data["Accounts Receivables"].append(row_data)
+                            elif current_section == "Invoices":
+                                data["Invoices"].append(row_data)
                      
 
         return data
