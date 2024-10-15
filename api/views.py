@@ -1358,7 +1358,7 @@ class Adjustmentandrefund(APIView):
 
         # Regular expressions to match the file-level parameters
         date_range_pattern = re.compile(r'Date Range\s*:\s*(.*)')
-        run_date_pattern = re.compile(r'Report run date\s*:\s*(.*)')
+        run_date_pattern = re.compile(r'(\bFTW[A-Z]+\b)\s*Report run date\s*:\s*(.*)')
         run_time_pattern = re.compile(r'Report run time\s*:\s*(.*)')
         username_pattern = re.compile(r'User\s*:\s*(.*)')
         adjustment_summary_headers = ["Type", "Name", "User", "Adjusted Amount", "Adjusted Tax"]    
@@ -1376,7 +1376,8 @@ class Adjustmentandrefund(APIView):
                     if date_range_match := date_range_pattern.search(line):
                         data["Date Range"] = date_range_match.group(1).strip()
                     if run_date_match := run_date_pattern.search(line):
-                        data["Run Date"] = run_date_match.group(1).strip()
+                        data["Hotel ID"]=run_date_match.group(1).strip()
+                        data["Run Date"] = run_date_match.group(2).strip()
                     if run_time_match := run_time_pattern.search(line):
                         data["Run Time"] = run_time_match.group(1).strip()
                     if username_match := username_pattern.search(line):
