@@ -407,49 +407,137 @@ class ClerkActivityAPIView(APIView):
 
     def extract_data_from_excel(self, file):
         # Load the Excel file
-        df = pd.read_excel(file, sheet_name='Sheet1', header=None)
+        df = pd.read_excel(file, header=None)
+        hotelid=df.iloc[1,0] if pd.notna(df.iloc[1, 0]) else ""
         df = df.drop(df.columns[0], axis=1)
+        if hotelid ==  "":
+            hotelid=df.iloc[1,1].replace("Hotel ID : ", "") if pd.notna(df.iloc[1, 1]) else ""
+
+        if hotelid == "0535":
+            date_range = df.iloc[0, 14] if pd.notna(df.iloc[0, 14]) else ""
+            run_date = df.iloc[1, 14] if pd.notna(df.iloc[1, 14]) else ""
+            run_time = df.iloc[2, 14] if pd.notna(df.iloc[2, 14]) else ""
+            username = df.iloc[3, 14] if pd.notna(df.iloc[3, 14]) else ""
+
+        if hotelid == "FTWCL":
+            date_range = df.iloc[0, 7] if pd.notna(df.iloc[0, 7]) else ""
+            run_date = df.iloc[1, 7] if pd.notna(df.iloc[1, 7]) else ""
+            run_time = df.iloc[2, 7] if pd.notna(df.iloc[2, 7]) else ""
+            username = df.iloc[3, 7] if pd.notna(df.iloc[3, 7]) else ""
+
+        if hotelid == "FTWAA":
+            date_range = df.iloc[0, 11].replace("Date Range: ", "") if pd.notna(df.iloc[0, 11]) else ""
+            run_date = df.iloc[1, 11].replace("Report run date: ", "") if pd.notna(df.iloc[1, 11]) else ""
+            run_time = df.iloc[2, 11].replace("Report run time: ", "") if pd.notna(df.iloc[2, 11]) else ""
+            username = df.iloc[3, 11] if pd.notna(df.iloc[3, 11]) else ""
+
+           
+
+
         
         # Initialize the data structure
         data = {
-            "Date Range": "Sep 06, 2024 - Sep 06, 2024",  # Hardcoded for this example, adjust as needed
-            "Run Date": "Sep 07, 2024",  # Hardcoded for this example, adjust as needed
-            "Run Time": "3:32:59 PM",  # Hardcoded for this example, adjust as needed
-            "Username": "Sagar Patel",  # Hardcoded for this example, adjust as needed
-            "User": "ALL",  # Hardcoded for this example, adjust as needed
+            "Date Range": date_range,  # Hardcoded for this example, adjust as needed
+            "Run Date": run_date,  # Hardcoded for this example, adjust as needed
+            "Run Time": run_time,  # Hardcoded for this example, adjust as needed
+            "Username":username ,  # Hardcoded for this example, adjust as needed
+            "User": "ALL",
+            "Hotel id":hotelid,# Hardcoded for this example, adjust as needed
             "Payment Type": "ALL",  # Hardcoded for this example, adjust as needed
             "cash": [],
             "Master": [],
-            "Visa": []
+            "Visa": [],
+            "Clerk Activity2":[],
+            "Summary":[],
         }
 
         # Helper function to extract data from each section
-        def extract_section_data(df, start_row):
+        def extract_section_data(df, start_row,sectionname):
             transactions = []
             for i in range(start_row, df.shape[0]):
                 # Stop if the Grand Total is reached or the next section is detected
                 if pd.isna(df.iloc[i, 0]) or 'Grand Total' in str(df.iloc[i, 0]):
                     break
 
-                # Extract transaction details, ensuring there are no NaN values
-                transaction = {
-                    "Date": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else "",
-                    "Time": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else "",
-                    "Confirmation No": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else "",
-                    "Guest Name": df.iloc[i, 6] if not pd.isna(df.iloc[i, 6]) else "",
-                    "Company Name": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else "",
-                    "Room Number": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else "",
-                    "Username": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else "",
-                    "Amount": df.iloc[i, 14] if not pd.isna(df.iloc[i, 14]) else ""
+            # Extract transaction details, ensuring there are no NaN values
+                if hotelid == "0535":
+                    transaction = {
+                "Date": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else "",
+                "Time": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else "",
+                "Confirmation No": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else "",
+                "Guest Name": df.iloc[i, 6] if not pd.isna(df.iloc[i, 6]) else "",
+                "Company Name": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else "",
+                "Room Number": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else "",
+                "Username": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else "",
+                "Amount": df.iloc[i, 14] if not pd.isna(df.iloc[i, 14]) else ""
                 }
+                if hotelid == "FTWCL" and sectionname =="Clerk Activity":
+                
+                    transaction = {
+                "Date": df.iloc[i, 0].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 0], datetime) else df.iloc[i, 0],
+                "Time": df.iloc[i, 1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(df.iloc[i, 1], datetime) else df.iloc[i, 1],
+                "Room Number": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else "",
+                "Username": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else "",
+                "Amount": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else "",
+                "Payment Type": df.iloc[i, 5] if not pd.isna(df.iloc[i, 5]) else "",
+                
+                }
+                
+                if hotelid == "FTWCL" and sectionname =="Summary" and sectionname !="Clerk Activity":
+                
+            
+                    transaction = {
+
+                "User name": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else "",
+                "Payment Type": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else "",
+                "Total Amount": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else "",
+                
+                }
+                if hotelid == "FTWAA" and  sectionname =="Clerk Activity":
+                      transaction = {
+
+                "Date": df.iloc[i, 0].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 0], datetime) else df.iloc[i, 0],
+                "Time": df.iloc[i, 1].strftime('%Y-%m-%d %H:%M:%S') if isinstance(df.iloc[i, 1], datetime) else df.iloc[i, 1],
+                "Transaction Number": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else "",
+                "Name": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else "",
+                "Company": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else "",
+                "Room Number": df.iloc[i, 5] if not pd.isna(df.iloc[i, 5]) else "",
+                "Username": df.iloc[i, 6] if not pd.isna(df.iloc[i, 6]) else "",
+                "Amount": df.iloc[i, 7] if not pd.isna(df.iloc[i, 7]) else "",
+                "Department Code": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else "",
+                "Department Name": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else "",
+                "GL Account Code": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else "",
+                "GL Account Name": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else "",
+                "Payment Type": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else "",
+                "Payment Detail": df.iloc[i, 13] if not pd.isna(df.iloc[i, 13]) else "",
+
+                }
+                
+                if hotelid == "FTWAA" and sectionname =="Summary" and sectionname !="Clerk Activity":
+                
+            
+                    transaction = {
+
+                "User name": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else "",
+                "Payment Type": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else "",
+                "Total Amount": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else "",
+                
+                }
+
+                    
+
+
+                   
+
                 transactions.append(transaction)
             return transactions
 
-        # Function to locate the start of each section
+    # Function to locate the start of each section
         def find_section_start(df, section_name):
             for i in range(df.shape[0]):
                 # Convert the cell to a string, strip extra spaces, and handle NaN
                 cell_value = str(df.iloc[i, 0]).strip() if not pd.isna(df.iloc[i, 0]) else ''
+                # Debugging: Print the rows while searching for the section name
                 if cell_value.lower() == section_name.lower():
                     return i + 2  # Skip the header row (Date, Time, etc.)
             return None
@@ -458,15 +546,30 @@ class ClerkActivityAPIView(APIView):
         cash_start = find_section_start(df, 'Cash')
         master_start = find_section_start(df, 'Master')
         visa_start = find_section_start(df, 'Visa')
+        clerksection=find_section_start(df, 'Clerk Activity')
+        Summary=find_section_start(df, 'Summary')
 
         # Extract data for each section if the section exists
         if cash_start is not None:
-            data["cash"] = extract_section_data(df, cash_start)
+            sectionname="cash"
+            data["cash"] = extract_section_data(df, cash_start,sectionname)
         if master_start is not None:
-            data["Master"] = extract_section_data(df, master_start)
+            sectionname="Master"
+            data["Master"] = extract_section_data(df, master_start,sectionname)
         if visa_start is not None:
-            data["Visa"] = extract_section_data(df, visa_start)
+            sectionname="Visa"
+            data["Visa"] = extract_section_data(df, visa_start,sectionname)
+        if clerksection is not None:
+            sectionname="Clerk Activity"
+            data["Clerk Activity2"] = extract_section_data(df, clerksection,sectionname)
+            
+        if Summary is not None:
+            sectionname="Summary"
+            data["Summary"] = extract_section_data(df, Summary,sectionname)
 
+
+
+ 
         # Return the extracted data as JSON
         return data
 
