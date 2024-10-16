@@ -10,7 +10,7 @@ from .views import Rateplansummary
 from .views import Adjustmentandrefund
 from .views import Directbilagging
 from .views import Rateplansummaryhampton
-
+from .views import TaxReport
 
 urlpatterns = [
 
@@ -25,8 +25,7 @@ urlpatterns = [
     path('adjustment-plan/', Adjustmentandrefund.as_view(), name='adjustment_plan'),
     path('Direct-Bill-Agging/', Directbilagging.as_view(), name='Direct_Bill_Agging'),
     path('Rate-plan-summary-hampton/', Rateplansummaryhampton.as_view(), name='Rate_plan_summary_hampton'),
-
-
+    path('Tax-Report-Hotels/', TaxReport.as_view(), name='Tax_Report'),
     
 
 
