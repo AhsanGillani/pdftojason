@@ -1760,3 +1760,232 @@ class Rateplansummaryhampton(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+class TaxReport(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def extract_data_from_excel(self, file):
+        try:
+            # Load the Excel file
+            df = pd.read_excel(file, header=None)
+        except Exception as e:
+            raise ValueError(f"Error reading Excel file: {str(e)}")
+        
+        # Load the Excel file
+        hotelid=df.iloc[1,0] if pd.notna(df.iloc[1, 0]) else None
+        df = df.drop(df.columns[0], axis=1)
+
+        date_range, run_date, run_time, username = None, None, None, None
+
+
+        if hotelid == "0535":
+            date_range = df.iloc[0, 14] if pd.notna(df.iloc[0, 14]) else None
+            run_date = df.iloc[1, 14] if pd.notna(df.iloc[1, 14]) else None
+            run_time = df.iloc[2, 14] if pd.notna(df.iloc[2, 14]) else None
+            username = df.iloc[3, 14] if pd.notna(df.iloc[3, 14]) else None
+
+        if hotelid == "FTWCL":
+            date_range = df.iloc[0, 10].replace("Date Range: ", "") if pd.notna(df.iloc[0, 10]) else None
+            run_date = df.iloc[1, 10].replace("Report run date: ", "") if pd.notna(df.iloc[1, 10]) else None
+            run_time = df.iloc[2, 10].replace("Report run time: ", "") if pd.notna(df.iloc[2, 10]) else None
+            username = df.iloc[3, 10] if pd.notna(df.iloc[3, 10]) else None
+
+        if hotelid == "FTWAA":
+            date_range = df.iloc[0, 14].replace("Date Range: ", "") if pd.notna(df.iloc[0, 14]) else None
+            run_date = df.iloc[1, 14].replace("Report run date: ", "") if pd.notna(df.iloc[1, 14]) else None
+            run_time = df.iloc[2, 14].replace("Report run time: ", "") if pd.notna(df.iloc[2, 14]) else None
+            username = df.iloc[3, 14] if pd.notna(df.iloc[3, 14]) else None
+
+           
+
+
+        
+        # Initialize the data structure
+        data = {
+            "Date Range": date_range,  # Hardcoded for this example, adjust as needed
+            "Run Date": run_date,  # Hardcoded for this example, adjust as needed
+            "Run Time": run_time,  # Hardcoded for this example, adjust as needed
+            "Username":username ,  # Hardcoded for this example, adjust as needed
+            "Hotel id":hotelid,# Hardcoded for this example, adjust as needed
+            "Non Exempted Tax Details": [],
+            "Exempted Tax Details":[],
+            "Summary":[],
+        }
+
+        # Helper function to extract data from each section
+        def extract_section_data(df, start_row,sectionname):
+            transactions = []
+            for i in range(start_row, df.shape[0]):
+                # Stop if the Grand Total is reached or the next section is detected
+                if pd.isna(df.iloc[i, 0]) or 'Grand Total' in str(df.iloc[i, 0]):
+                    break
+
+            # Extract transaction details, ensuring there are no NaN values
+              
+                if hotelid == "FTWCL" and sectionname =="Exempted Tax Details":
+                
+                    transaction = {                
+                    "Transaction Number": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else None,
+                    "Transaction Type": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
+                    "Room Number": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
+                    "Guest Name": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
+                    "Company Name": df.iloc[i, 4] if not pd.isna(df.iloc[i,4]) else None,
+                    "Tax Exemption Category": df.iloc[i, 5] if not pd.isna(df.iloc[i, 5]) else None,
+                    "Check In Date": df.iloc[i, 6].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 6], datetime) else df.iloc[i, 6],
+                    "Check Out Date": df.iloc[i, 7].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 7], datetime) else df.iloc[i, 7],
+                    "Exempted Revenue": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else None,
+                    "MISC SALES TAX": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else None,
+                    "TEXAS RECOVERY FEE": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else None,
+                    "RM STATE TAX": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else None,
+                    "RM CITY TAX": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else None
+
+                
+                }
+                    
+                if hotelid == "FTWCL" and sectionname =="Non Exempted Tax Details":
+                
+                    transaction = {                
+                    "Transaction Number": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else None,
+                    "Transaction Type": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
+                    "Room Number": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
+                    "Guest Name": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
+                    "Company Name": df.iloc[i, 4] if not pd.isna(df.iloc[i,4]) else None,
+                    # "Tax Exemption Category": df.iloc[i, 5] if not pd.isna(df.iloc[i, 5]) else "",
+                    "Check In Date": df.iloc[i, 5].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 5], datetime) else df.iloc[i, 5],
+                    "Check Out Date": df.iloc[i, 6].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 6], datetime) else df.iloc[i, 6],
+                    "Exempted Revenue": df.iloc[i, 7] if not pd.isna(df.iloc[i, 7]) else None,
+                    "MISC SALES TAX": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else None,
+                    "TEXAS RECOVERY FEE": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else None,
+                    "RM STATE TAX": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else None,
+                    "RM CITY TAX": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else None
+              
+                }
+                                   
+                if hotelid == "FTWCL" and sectionname =="Summary" :
+                
+            
+                    transaction = {
+
+                    "Tax Name": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else None,
+                    "Taxable Revenue": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
+                    "Exempted Revenue": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
+                    "Payable Tax": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
+                    "Exempted Tax": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else None,
+                
+                }
+             
+                if hotelid == "FTWAA" and sectionname =="Exempted Tax Details":
+                
+                    transaction = {                
+                    "Transaction Number": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else None,
+                    "Transaction Type": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
+                    "Room Number": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
+                    "Guest Name": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
+                    "Company Name": df.iloc[i, 4] if not pd.isna(df.iloc[i,4]) else None,
+                    "Tax Exemption Category": df.iloc[i, 5] if not pd.isna(df.iloc[i, 5]) else None,
+                    "Check In Date": df.iloc[i, 6].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 6], datetime) else df.iloc[i, 6],
+                    "Check Out Date": df.iloc[i, 7].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 7], datetime) else df.iloc[i, 7],
+                    "Exempted Revenue": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else None,            
+                    "MEETING ROOM TAX": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else None,
+                    "FOOD N BEVERAGE TAX": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else None,
+                    "RM - STATE TAX": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else None,
+                    "MRT RM - STATE TAX": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else None,
+                    "FB TAX": df.iloc[i, 13] if not pd.isna(df.iloc[i, 13]) else None,
+                    "MISC SALES TAX": df.iloc[i, 14] if not pd.isna(df.iloc[i, 14]) else None,
+                    "VENUE HOTEL OCCUPANCY TAX": df.iloc[i, 15] if not pd.isna(df.iloc[i, 15]) else None,                
+                    "RM CITY TAX": df.iloc[i, 16] if not pd.isna(df.iloc[i, 16]) else None
+                
+                }
+                    
+                if hotelid == "FTWAA" and sectionname =="Non Exempted Tax Details":
+                
+                    transaction = {                
+                    "Transaction Number": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else None,
+                    "Transaction Type": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
+                    "Room Number": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
+                    "Guest Name": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
+                    "Company Name": df.iloc[i, 4] if not pd.isna(df.iloc[i,4]) else None,
+                    "Check In Date": df.iloc[i, 5].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 5], datetime) else df.iloc[i, 5],
+                    "Check Out Date": df.iloc[i, 6].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 6], datetime) else df.iloc[i, 6],
+                    "Exempted Revenue": df.iloc[i, 7] if not pd.isna(df.iloc[i, 7]) else None,            
+                    "MEETING ROOM TAX": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else None,
+                    "FOOD N BEVERAGE TAX": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else None,
+                    "RM - STATE TAX": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else None,
+                    "MRT RM - STATE TAX": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else None,
+                    "FB TAX": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else None,
+                    "MISC SALES TAX": df.iloc[i, 13] if not pd.isna(df.iloc[i, 13]) else None,
+                    "VENUE HOTEL OCCUPANCY TAX": df.iloc[i, 14] if not pd.isna(df.iloc[i, 14]) else None,                
+                    "RM CITY TAX": df.iloc[i, 15] if not pd.isna(df.iloc[i, 15]) else None
+                
+                }
+                                  
+                if hotelid == "FTWAA" and sectionname =="Summary" :                           
+                    transaction = {
+
+                    "Tax Name": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else None,
+                    "Taxable Revenue": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
+                    "Exempted Revenue": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
+                    "Payable Tax": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
+                    "Exempted Tax": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else None,                
+                
+                }
+             
+                transactions.append(transaction)
+            return transactions
+
+    # Function to locate the start of each section
+        def find_section_start(df, section_name):
+            for i in range(df.shape[0]):
+                # Convert the cell to a string, strip extra spaces, and handle NaN
+                cell_value = str(df.iloc[i, 0]).strip() if not pd.isna(df.iloc[i, 0]) else ''
+                # Debugging: Print the rows while searching for the section name
+                if cell_value.lower() == section_name.lower():
+                    return i + 2  # Skip the header row (Date, Time, etc.)
+            return None
+
+        # Identify where each section starts
+
+        non_exempted = find_section_start(df, 'Non Exempted Tax Details')
+        Tax_exempted=find_section_start(df, 'Exempted Tax Details')
+        Summary=find_section_start(df, 'Summary')
+
+        # Extract data for each section if the section exists
+
+        if non_exempted is not None:
+            sectionname="Non Exempted Tax Details"
+            data["Non Exempted Tax Details"] = extract_section_data(df, non_exempted,sectionname)
+        if Tax_exempted is not None:
+            sectionname="Exempted Tax Details"
+            data["Exempted Tax Details"] = extract_section_data(df, Tax_exempted,sectionname)
+            
+        if Summary is not None:
+            sectionname="Summary"
+            data["Summary"] = extract_section_data(df, Summary,sectionname)
+
+        for key in data.keys():
+            if isinstance(data[key], list):
+                data[key] = [{k: (v if pd.notna(v) else None) for k, v in item.items()} for item in data[key]]
+            else:
+                data[key] = None if pd.isna(data[key]) else data[key]
+
+ 
+        # Return the extracted data as JSON
+        return data
+
+    def post(self, request, *args, **kwargs):
+        excel_file = request.FILES.get('file', None)
+
+        if not excel_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Call the extraction method
+            extracted_data = self.extract_data_from_excel(excel_file)
+            return Response(extracted_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
