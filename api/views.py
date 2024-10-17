@@ -8,6 +8,10 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from django.shortcuts import render
 from datetime import datetime
+import requests
+
+from django.conf import settings
+
 
 def index(request):
     return render(request, 'index.html')
@@ -1989,3 +1993,80 @@ class TaxReport(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+
+
+
+
+
+class SentimentAnalysisView(APIView):
+    def post(self, request):
+        # Extracting client_messages and user_messages from the request data
+        client_messages = request.data.get("client_messages", [])
+        user_messages = request.data.get("user_messages", [])
+
+        # Validate input
+        if not isinstance(client_messages, list) or not isinstance(user_messages, list):
+            return Response({"error": "Both client_messages and user_messages should be lists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Call the sentiment analysis function
+        result = analyze_sentiment(client_messages, user_messages)
+
+        return Response(result)
+
+def analyze_sentiment(client_messages, user_messages):
+    url = "https://api.openai.com/v1/chat/completions"
+    API_KEY = settings.API_KEY
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization":API_KEY
+    }
+    # Prepare the conversation context by combining client and user messages
+    combined_chat = "\n".join([f"Client: {msg}" for msg in client_messages] + 
+                               [f"You: {msg}" for msg in user_messages])
+
+    # We explicitly ask for the classification label to always be provided
+    data = {
+        "model": "gpt-4",
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant that analyzes sentiment in chat conversations."},
+            {"role": "user", "content": f"Analyze the sentiment of the following chat history and provide the following structured output:\n\n1. Classification Label (positive, negative, neutral, aggressive, or not satisfied).\n2. Next Action (if any, like 'continue work', 'terminate project', 'refund project cost'; leave blank if not applicable).\n3. Area of Improvement (suggestions if any, otherwise say 'No improvement needed').\n\nChat History:\n{combined_chat}"}
+        ],
+        "max_tokens": 200
+    }
+    
+    # Make the POST request to the OpenAI API
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        raw_response = response_data['choices'][0]['message']['content']
+        
+        # Initialize variables
+        classification_label = ""
+        next_action = ""
+        area_of_improvement = ""
+        
+        # Parsing the raw response for classification, next action, and improvement
+        for line in raw_response.split("\n"):
+            if "Classification Label:" in line:
+                classification_label = line.split(":")[-1].strip()
+            elif "Next Action:" in line:
+                next_action = line.split(":")[-1].strip() or ""
+            elif "Area of Improvement:" in line:
+                area_of_improvement = line.split(":")[-1].strip()
+        
+        # Ensure the classification label is filled in, otherwise raise an error or handle appropriately
+        if not classification_label:
+            classification_label = "Not Provided"
+
+        # Prepare the final JSON response
+        final_response = {
+            "Classification Label": classification_label,
+            "Next Action": next_action,
+            "Area of Improvement": area_of_improvement
+        }
+        
+        return final_response
+    else:
+        return {"Error": f"{response.status_code}, {response.text}"}
