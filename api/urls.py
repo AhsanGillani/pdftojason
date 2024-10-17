@@ -11,6 +11,8 @@ from .views import Adjustmentandrefund
 from .views import Directbilagging
 from .views import Rateplansummaryhampton
 from .views import TaxReport
+from .views import SentimentAnalysisView
+
 
 urlpatterns = [
 
@@ -26,6 +28,9 @@ urlpatterns = [
     path('Direct-Bill-Agging/', Directbilagging.as_view(), name='Direct_Bill_Agging'),
     path('Rate-plan-summary-hampton/', Rateplansummaryhampton.as_view(), name='Rate_plan_summary_hampton'),
     path('Tax-Report-Hotels/', TaxReport.as_view(), name='Tax_Report'),
+
+
+    path('sentiment-analysis/', SentimentAnalysisView.as_view(), name='sentiment-analysis'),
     
 
 
