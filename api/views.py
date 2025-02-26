@@ -1794,7 +1794,7 @@ class TaxReport(APIView):
 
         if hotelid == "FTWCL":
             date_range = df.iloc[0, 13].replace("Date Range: ", "") if pd.notna(df.iloc[0, 13]) else None
-            run_date = df.iloc[1, 13].replace("Report run date: ", "") if pd.notna(df.iloc[1, 123]) else None
+            run_date = df.iloc[1, 13].replace("Report run date: ", "") if pd.notna(df.iloc[1, 13]) else None
             run_time = df.iloc[2, 13].replace("Report run time: ", "") if pd.notna(df.iloc[2, 13]) else None
             username = df.iloc[3, 13] if pd.notna(df.iloc[3, 13]) else None
 
