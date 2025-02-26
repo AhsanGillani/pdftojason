@@ -1793,10 +1793,10 @@ class TaxReport(APIView):
             username = df.iloc[3, 14] if pd.notna(df.iloc[3, 14]) else None
 
         if hotelid == "FTWCL":
-            date_range = df.iloc[0, 10].replace("Date Range: ", "") if pd.notna(df.iloc[0, 10]) else None
-            run_date = df.iloc[1, 10].replace("Report run date: ", "") if pd.notna(df.iloc[1, 10]) else None
-            run_time = df.iloc[2, 10].replace("Report run time: ", "") if pd.notna(df.iloc[2, 10]) else None
-            username = df.iloc[3, 10] if pd.notna(df.iloc[3, 10]) else None
+            date_range = df.iloc[0, 12].replace("Date Range: ", "") if pd.notna(df.iloc[0, 12]) else None
+            run_date = df.iloc[1, 12].replace("Report run date: ", "") if pd.notna(df.iloc[1, 12]) else None
+            run_time = df.iloc[2, 12].replace("Report run time: ", "") if pd.notna(df.iloc[2, 12]) else None
+            username = df.iloc[3, 12] if pd.notna(df.iloc[3, 12]) else None
 
         if hotelid == "FTWAA":
             date_range = df.iloc[0, 14].replace("Date Range: ", "") if pd.notna(df.iloc[0, 14]) else None
@@ -1834,18 +1834,19 @@ class TaxReport(APIView):
 
                     transaction = {
                     "Transaction Number": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else None,
-                    "Transaction Type": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
-                    "Room Number": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
-                    "Guest Name": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
-                    "Company Name": df.iloc[i, 4] if not pd.isna(df.iloc[i,4]) else None,
-                    "Tax Exemption Category": df.iloc[i, 5] if not pd.isna(df.iloc[i, 5]) else None,
-                    "Check In Date": df.iloc[i, 6].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 6], datetime) else df.iloc[i, 6],
-                    "Check Out Date": df.iloc[i, 7].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 7], datetime) else df.iloc[i, 7],
-                    "Exempted Revenue": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else None,
-                    "MISC SALES TAX": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else None,
-                    "TEXAS RECOVERY FEE": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else None,
-                    "RM STATE TAX": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else None,
-                    "RM CITY TAX": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else None
+                    "Folio Number": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
+                    "Transaction Type": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
+                    "Room Number": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
+                    "Guest Name": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else None,
+                    "Company Name": df.iloc[i, 5] if not pd.isna(df.iloc[i,5]) else None,
+                    "Tax Exemption Category": df.iloc[i, 6] if not pd.isna(df.iloc[i, 6]) else None,
+                    "Check In Date": df.iloc[i, 7].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 7], datetime) else df.iloc[i, 6],
+                    "Check Out Date": df.iloc[i, 8].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 8], datetime) else df.iloc[i, 7],
+                    "Exempted Revenue": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else None,
+                    "MISC SALES TAX": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else None,
+                    "TEXAS RECOVERY FEE": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else None,
+                    "RM STATE TAX": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else None,
+                    "RM CITY TAX": df.iloc[i, 13] if not pd.isna(df.iloc[i, 13]) else None
 
 
                 }
@@ -1854,18 +1855,19 @@ class TaxReport(APIView):
 
                     transaction = {
                     "Transaction Number": df.iloc[i, 0] if not pd.isna(df.iloc[i, 0]) else None,
-                    "Transaction Type": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
-                    "Room Number": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
-                    "Guest Name": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
-                    "Company Name": df.iloc[i, 4] if not pd.isna(df.iloc[i,4]) else None,
+                    "Folio Number": df.iloc[i, 1] if not pd.isna(df.iloc[i, 1]) else None,
+                    "Transaction Type": df.iloc[i, 2] if not pd.isna(df.iloc[i, 2]) else None,
+                    "Room Number": df.iloc[i, 3] if not pd.isna(df.iloc[i, 3]) else None,
+                    "Guest Name": df.iloc[i, 4] if not pd.isna(df.iloc[i, 4]) else None,
+                    "Company Name": df.iloc[i, 5] if not pd.isna(df.iloc[i,5]) else None,
                     # "Tax Exemption Category": df.iloc[i, 5] if not pd.isna(df.iloc[i, 5]) else "",
-                    "Check In Date": df.iloc[i, 5].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 5], datetime) else df.iloc[i, 5],
-                    "Check Out Date": df.iloc[i, 6].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 6], datetime) else df.iloc[i, 6],
-                    "Exempted Revenue": df.iloc[i, 7] if not pd.isna(df.iloc[i, 7]) else None,
-                    "MISC SALES TAX": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else None,
-                    "TEXAS RECOVERY FEE": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else None,
-                    "RM STATE TAX": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else None,
-                    "RM CITY TAX": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else None
+                    "Check In Date": df.iloc[i, 6].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 6], datetime) else df.iloc[i, 5],
+                    "Check Out Date": df.iloc[i, 7].strftime('%Y-%m-%d') if isinstance(df.iloc[i, 7], datetime) else df.iloc[i, 6],
+                    "Exempted Revenue": df.iloc[i, 8] if not pd.isna(df.iloc[i, 8]) else None,
+                    "MISC SALES TAX": df.iloc[i, 9] if not pd.isna(df.iloc[i, 9]) else None,
+                    "TEXAS RECOVERY FEE": df.iloc[i, 10] if not pd.isna(df.iloc[i, 10]) else None,
+                    "RM STATE TAX": df.iloc[i, 11] if not pd.isna(df.iloc[i, 11]) else None,
+                    "RM CITY TAX": df.iloc[i, 12] if not pd.isna(df.iloc[i, 12]) else None
 
                 }
 
