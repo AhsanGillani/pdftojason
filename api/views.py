@@ -1447,6 +1447,9 @@ class Adjustmentandrefund(APIView):
             "Hotel ID": "",  # Hardcoded based on your input
             "Adjustments": [],
             "Adjustment Summary": [],
+            "Refunds":[],
+            "Refunds Summary":[],
+            
         }
 
         # Regular expressions to match the file-level parameters
@@ -1455,6 +1458,8 @@ class Adjustmentandrefund(APIView):
         run_time_pattern = re.compile(r'Report run time\s*:\s*(.*)')
         username_pattern = re.compile(r'User\s*:\s*(.*)')
         adjustment_summary_headers = ["Type", "Name", "User", "Adjusted Amount", "Adjusted Tax"]
+        refund_summary_headers=['Type', 'Name', 'REFUND AMOUNT']
+        refund_section=['Date', 'Time', 'Transaction\nType', 'Transaction\nName', 'Transaction\nNumber', 'Room\nNumber', 'Payment\nDetail', 'Refund Code', 'Payment\nType\nRefunded']
         current_section = None  # Variable to track the current section (Date, M-T-D, Y-T-D)
 
         # Open the PDF and process it
@@ -1486,27 +1491,44 @@ class Adjustmentandrefund(APIView):
 
                 # Identify which section (Adjustments or Adjustment Summary) we are processing
                     for row in table:
-                    # Check for headers that signify new sections
-                        if any("Adjustments" in cell for cell in row if cell) and not any("Summary" in cell for cell in row if cell):
+                        
+                        # Check for headers that signify new sections
+                        if any("Adjustments" in cell for cell in row if cell) and not any("Refunds" in cell for cell in row if cell):
                             current_section = "Adjustments"
                             continue
-                        elif any("Adjustment Summary" in cell for cell in row if cell):
+                        elif any("Adjustment Summary" in cell for cell in row if cell) and not any("Refunds" in cell for cell in row if cell):
                             current_section = "Adjustment Summary"
                             continue
-
-                    # Skip the row if it matches the headers (for Adjustment Summary)
+                        elif any("Refunds" in cell for cell in row if cell) and not any("Summary" in cell for cell in row if cell):
+                   
+                            current_section = "Refunds"
+                            continue
+                            
+                        elif any("Summary" in cell for cell in row if cell):
+                            
+                            current_section = "Refunds Summary"
+                            continue
+                        
+                        # Skip the row if it matches the headers (for Adjustment Summary)
                         if current_section == "Adjustment Summary" and row[:5] == adjustment_summary_headers:
                             continue
-
-                    # Skip the row if it contains headers like "Date", "Time", etc.
+                            
+                        if current_section == "Refunds" and row[:9] == refund_section:
+                           continue
+                            
+                        if current_section == "Refunds Summary" and row[:3] == refund_summary_headers:
+                            continue
+                        
+                        # Skip the row if it contains headers like "Date", "Time", etc.
                         if row[0] is not None and "Date" in row[0] or row[1] is not None and "Time" in row[1]:
                             continue  # This is the header row, so skip it
-
-                    # Initialize row_data and capture the data from the table rows
+                       
                         row_data = None
-
+                        
                         if len(row) == 12:
-                            row_data = {
+                            if row[0] and row[0].strip().lower() != "totals":
+                                
+                                row_data = {
                                 "Date": row[0],
                                 "Time": row[1],
                                 "Transaction Type": row[2],
@@ -1520,7 +1542,24 @@ class Adjustmentandrefund(APIView):
                                 "Username": row[10],
                                 "Remarks": row[11],
                         }
-
+                        elif len(row) == 9:
+                            if row[0] and row[0].strip().lower() != "totals":
+                            
+                                row_data = {
+                            "Date": row[0],
+                            "Time": row[1],
+                            "Transaction Type": row[2],
+                            "Charge Type": row[3].replace('\n', ' ').strip(),
+                            "Transaction Name": row[4].replace('\n', ' ').strip(),
+                            "Transaction Number": row[5],
+                            "Room Number": row[6],
+                            
+                            "Payment Detail": row[7],
+                            "Refund Code": row[8].replace('\n', ' ').strip(),
+                            #"Payment Type Refunded": row[9],
+                   
+                        }
+                            
                         elif len(row) == 5:
                             row_data = {
                                 "Type": row[0],
@@ -1530,12 +1569,32 @@ class Adjustmentandrefund(APIView):
                                 "Adjusted Tax": row[4].replace('\n', '').strip(),
                         }
 
+
+                        elif len(row) == 3:
+                            if all(cell is not None and cell.strip() != "" for cell in row):
+                        
+                                row_data = {
+                            "Type": row[0],
+                            "Name": row[1],
+                            "Refund Amount": row[2],
+
+                        }
+
                     # Only append row_data if it's been populated
+    
+
+
                         if row_data:
                             if current_section == "Adjustments":
                                 data["Adjustments"].append(row_data)
                             elif current_section == "Adjustment Summary":
                                 data["Adjustment Summary"].append(row_data)
+                            elif current_section == "Refunds":
+                                data["Refunds"].append(row_data)
+                            elif current_section == "Refunds Summary":
+                                data["Hotel ID"] ="FTWCL"
+                            
+                                data["Refunds Summary"].append(row_data)
 
 
         return data
