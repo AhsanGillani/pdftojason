@@ -1449,9 +1449,7 @@ class Adjustmentandrefund(APIView):
             "Adjustment Summary": [],
             "Refunds":[],
             "Refunds Summary":[],
-            
         }
-
         # Regular expressions to match the file-level parameters
         date_range_pattern = re.compile(r'Date Range\s*:\s*(.*)')
         run_date_pattern = re.compile(r'(\bFTW[A-Z]+\b)\s*Report run date\s*:\s*(.*)')
@@ -1491,8 +1489,7 @@ class Adjustmentandrefund(APIView):
 
                 # Identify which section (Adjustments or Adjustment Summary) we are processing
                     for row in table:
-                        
-                        # Check for headers that signify new sections
+                            # Check for headers that signify new sections
                         if any("Adjustments" in cell for cell in row if cell) and not any("Refunds" in cell for cell in row if cell):
                             current_section = "Adjustments"
                             continue
@@ -1500,7 +1497,7 @@ class Adjustmentandrefund(APIView):
                             current_section = "Adjustment Summary"
                             continue
                         elif any("Refunds" in cell for cell in row if cell) and not any("Summary" in cell for cell in row if cell):
-                   
+                
                             current_section = "Refunds"
                             continue
                             
@@ -1514,20 +1511,27 @@ class Adjustmentandrefund(APIView):
                             continue
                             
                         if current_section == "Refunds" and row[:9] == refund_section:
-                           continue
+                            continue
                             
                         if current_section == "Refunds Summary" and row[:3] == refund_summary_headers:
                             continue
+
+
                         
                         # Skip the row if it contains headers like "Date", "Time", etc.
                         if row[0] is not None and "Date" in row[0] or row[1] is not None and "Time" in row[1]:
-                            continue  # This is the header row, so skip it
-                       
+                            continue  # This is the header row, so skip it           
+                    
+
+
+                    
+        
+
+                    # Initialize row_data and capture the data from the table rows
                         row_data = None
-                        
+
                         if len(row) == 12:
                             if row[0] and row[0].strip().lower() != "totals":
-                                
                                 row_data = {
                                 "Date": row[0],
                                 "Time": row[1],
@@ -1559,19 +1563,21 @@ class Adjustmentandrefund(APIView):
                             #"Payment Type Refunded": row[9],
                    
                         }
-                            
+
                         elif len(row) == 5:
                             row_data = {
                                 "Type": row[0],
                                 "Name": row[1],
                                 "User": row[2],
-                                "Adjusted Amount": row[3].replace('\n', '').strip(),
-                                "Adjusted Tax": row[4].replace('\n', '').strip(),
+                                "Adjusted Amount": row[3].replace('\n', ' ').strip(),
+                                "Adjusted Tax": row[4].replace('\n', ' ').strip(),
                         }
 
 
                         elif len(row) == 3:
                             if all(cell is not None and cell.strip() != "" for cell in row):
+                            
+                            
                         
                                 row_data = {
                             "Type": row[0],
@@ -1580,10 +1586,8 @@ class Adjustmentandrefund(APIView):
 
                         }
 
-                    # Only append row_data if it's been populated
-    
 
-
+                        # Only append row_data if it's been populated
                         if row_data:
                             if current_section == "Adjustments":
                                 data["Adjustments"].append(row_data)
@@ -1593,7 +1597,7 @@ class Adjustmentandrefund(APIView):
                                 data["Refunds"].append(row_data)
                             elif current_section == "Refunds Summary":
                                 data["Hotel ID"] ="FTWCL"
-                            
+                                
                                 data["Refunds Summary"].append(row_data)
 
 
@@ -2132,4 +2136,3 @@ def analyze_sentiment(client_messages, user_messages):
         return final_response
     else:
         return {"Error": f"{response.status_code}, {response.text}"}
-        
