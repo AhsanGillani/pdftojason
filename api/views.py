@@ -1479,6 +1479,13 @@ class Adjustmentandrefund(APIView):
                     if username_match := username_pattern.search(line):
                         data["Username"] = username_match.group(1).strip()
 
+
+                    if data["Hotel ID"]=="FTWAA":
+                        data["Hotel ID"]="FTWAA"
+                
+                    elif data["Hotel ID"]=="":
+                        data["Hotel ID"]="FTWCL"
+
                 # Extract the tables from the page
                 tables = page.extract_tables()
 
@@ -1501,7 +1508,7 @@ class Adjustmentandrefund(APIView):
                             current_section = "Refunds"
                             continue
                             
-                        elif any("Summary" in cell for cell in row if cell):
+                        elif any("Summary" in cell for cell in row if cell) and not any("Adjustment" in cell for cell in row if cell):
                             
                             current_section = "Refunds Summary"
                             continue
@@ -1544,11 +1551,10 @@ class Adjustmentandrefund(APIView):
                                 "Adjusted Amount": row[8],
                                 "Adjusted Tax": row[9],
                                 "Username": row[10],
-                                "Remarks": row[11],
+                                "Remarks": row[11].replace('\n', ' ').strip(),
                         }
-                        elif len(row) == 9:
-                            if row[0] and row[0].strip().lower() != "totals":
-                            
+                        elif current_section == "Adjustments" and len(row) == 9 :
+                            if row[0] and row[0].strip().lower() != "totals":                         
                                 row_data = {
                             "Date": row[0],
                             "Time": row[1],
@@ -1557,12 +1563,40 @@ class Adjustmentandrefund(APIView):
                             "Transaction Name": row[4].replace('\n', ' ').strip(),
                             "Transaction Number": row[5],
                             "Room Number": row[6],
-                            
-                            "Payment Detail": row[7],
-                            "Refund Code": row[8].replace('\n', ' ').strip(),
-                            #"Payment Type Refunded": row[9],
+                            "Adjustment Reason Code": row[7].replace('\n', ' ').strip(),
+                            "Adjusted Amount": row[8].replace('\n', ' ').strip(),
+                            #"Payment Type Refunded": row[8].replace('\n', ' ').strip(),
                    
                         }
+                        elif current_section == "Refunds" and len(row) == 9 :
+                            if row[0] and row[0].strip().lower() != "totals":
+                            
+                                row_data = {
+                            "Date": row[0],
+                            "Time": row[1],
+                            "Transaction Type": row[2],
+                            #"Charge Type": row[3].replace('\n', ' ').strip(),
+                            "Transaction Name": row[3].replace('\n', ' ').strip(),
+                            "Transaction Number": row[4],
+                            "Room Number": row[5],
+                            
+                            "Payment Detail": row[6].replace('\n', ' ').strip(),
+                            "Refund Code": row[7].replace('\n', ' ').strip(),
+                            "Payment Type Refunded": row[8].replace('\n', ' ').strip(),
+                   
+                        }
+                        elif len(row) == 7:
+                        
+                            row_data = {
+                            "Type": row[0].replace('\n', ' ').strip(),
+                            "Name": row[1].replace('\n', ' ').strip(),
+                            "User": row[2],
+                            "Adjusted Amount": row[3].replace('\n', ' ').strip(),
+                            "Adjusted Tax": row[4].replace('\n', ' ').strip(),
+                            "Transferred Charge": row[5].replace('\n', ' ').strip(),
+                            "Transferred Tax": row[6].replace('\n', ' ').strip(),
+                        }
+
 
                         elif len(row) == 5:
                             row_data = {
@@ -1571,6 +1605,8 @@ class Adjustmentandrefund(APIView):
                                 "User": row[2],
                                 "Adjusted Amount": row[3].replace('\n', ' ').strip(),
                                 "Adjusted Tax": row[4].replace('\n', ' ').strip(),
+                                "Transferred Charge": '',
+                                "Transferred Tax":'',
                         }
 
 
@@ -1596,7 +1632,7 @@ class Adjustmentandrefund(APIView):
                             elif current_section == "Refunds":
                                 data["Refunds"].append(row_data)
                             elif current_section == "Refunds Summary":
-                                data["Hotel ID"] ="FTWCL"
+                                #data["Hotel ID"] ="FTWCL"
                                 
                                 data["Refunds Summary"].append(row_data)
 
