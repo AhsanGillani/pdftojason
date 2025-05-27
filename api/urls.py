@@ -12,7 +12,7 @@ from .views import Directbilagging
 from .views import Rateplansummaryhampton
 from .views import TaxReport
 from .views import SentimentAnalysisView
-
+from .views import QRCodeScanView
 
 urlpatterns = [
 
@@ -31,7 +31,7 @@ urlpatterns = [
 
 
     path('sentiment-analysis/', SentimentAnalysisView.as_view(), name='sentiment-analysis'),
-    
+    path('scan/', QRCodeScanView.as_view(), name='qr-scan'),
 
 
 ]
