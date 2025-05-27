@@ -9,8 +9,14 @@ from rest_framework import status
 from django.shortcuts import render
 from datetime import datetime
 import requests
-
 from django.conf import settings
+
+
+import cv2
+import numpy as np
+from pyzbar.pyzbar import decode
+
+
 
 
 def index(request):
@@ -2172,3 +2178,42 @@ def analyze_sentiment(client_messages, user_messages):
         return final_response
     else:
         return {"Error": f"{response.status_code}, {response.text}"}
+
+
+
+
+
+
+
+
+class QRCodeScanView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, *args, **kwargs):
+        image_file = request.FILES.get('image')
+
+        if not image_file:
+            return Response({"error": "No image provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Convert image file to OpenCV format
+            image_bytes = image_file.read()
+            np_arr = np.frombuffer(image_bytes, np.uint8)
+            image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+            # Decode QR codes
+            decoded_objects = decode(image)
+            results = [obj.data.decode('utf-8') for obj in decoded_objects]
+
+            if not results:
+                results = ["No QR code found."]
+
+            return Response({"data": results}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
