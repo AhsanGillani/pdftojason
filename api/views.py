@@ -1734,12 +1734,13 @@ class Directbilagging(APIView):
                         row_data = None
 
                         if len(row) == 9:
-                            row_data = {
+                            if row[0] and row[0].strip().lower() != "totals":
+                                row_data = {
                                 "Company Name": row[0],
                                 " Company Code": row[1],
                                 "Current": row[2],
-                                "Over 30": row[3].replace('\n', '').strip(),
-                                "Over 60": row[4].replace('\n', '').strip(),
+                                "Over 30": row[3].replace('\n', '').strip() if row[3] else "",
+                                "Over 60": row[4].replace('\n', '').strip() if row[4] else "",
                                 "Over 90": row[5],
                                 "Over 120 Days": row[6],
                                 "Over 150": row[7],
