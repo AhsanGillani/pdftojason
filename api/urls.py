@@ -13,6 +13,9 @@ from .views import Rateplansummaryhampton
 from .views import TaxReport
 from .views import SentimentAnalysisView
 from .views import QRCodeScanView
+from .views import FileNameView
+from .views import PDFParserView
+
 
 urlpatterns = [
 
@@ -32,6 +35,11 @@ urlpatterns = [
 
     path('sentiment-analysis/', SentimentAnalysisView.as_view(), name='sentiment-analysis'),
     path('scan/', QRCodeScanView.as_view(), name='qr-scan'),
+    path("get-filename/", FileNameView.as_view(), name="get-filename"),
+
+    path("parse-pdf/", PDFParserView.as_view(), name="parse-pdf"),
+
 
 
 ]
+
