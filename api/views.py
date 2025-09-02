@@ -22,6 +22,91 @@ from pyzbar.pyzbar import decode
 def index(request):
     return render(request, 'index.html')
 
+
+
+class FileNameView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, *args, **kwargs):
+        file_obj = request.FILES.get("file")
+        if not file_obj:
+            return Response({"error": "No file uploaded"}, status=400)
+
+        return Response({"filename": file_obj.name})
+
+
+# List of all known report types
+REPORT_TYPES = [
+    "Booked Reservations",
+    "All Charges",
+    "Direct Bill Aging",
+    "Adjustments and Refunds Activity",
+    "Final Audit",
+    "Occupancy Forecast",
+    "Occupancy Forecast and History",
+    "Tax Exempt List By Date Range",
+    "Rate Type Tracking",
+]
+
+
+class PDFParserView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, *args, **kwargs):
+        file_obj = request.FILES.get("file")
+        if not file_obj:
+            return Response({"error": "No file uploaded"}, status=400)
+
+        try:
+            pdf = pdfplumber.open(file_obj)
+            detected_report = None
+
+            # Loop through each page and check if any report name exists
+            for page in pdf.pages:
+                text = page.extract_text() or ""
+                for report in REPORT_TYPES:
+                    if report in text:
+                        detected_report = report
+                        break
+                if detected_report:
+                    break
+
+            pdf.close()
+
+            if not detected_report:
+                return Response(
+                    {"filename": file_obj.name, "report_type": "Unknown"},
+                    status=200
+                )
+
+            return Response(
+                {"filename": file_obj.name, "report_type": detected_report},
+                status=200
+            )
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class PDFExtractAPIView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -2213,6 +2298,7 @@ class QRCodeScanView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
