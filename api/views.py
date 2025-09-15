@@ -48,6 +48,13 @@ REPORT_TYPES = [
     "Rate Type Tracking",
 ]
 
+# List of known hotel IDs
+HOTEL_IDS = [
+    "0535",
+    "FTWCL",
+    "FTWAA",
+]
+
 
 class PDFParserView(APIView):
     parser_classes = (MultiPartParser, FormParser)
@@ -60,39 +67,42 @@ class PDFParserView(APIView):
         try:
             pdf = pdfplumber.open(file_obj)
             detected_report = None
+            detected_hotel_id = None
 
-            # Loop through each page and check if any report name exists
+            # Loop through each page and check for report type and hotel id
             for page in pdf.pages:
                 text = page.extract_text() or ""
-                for report in REPORT_TYPES:
-                    if report in text:
-                        detected_report = report
-                        break
-                if detected_report:
+
+                # Detect report type
+                if not detected_report:
+                    for report in REPORT_TYPES:
+                        if report in text:
+                            detected_report = report
+                            break
+
+                # Detect hotel ID
+                if not detected_hotel_id:
+                    for hid in HOTEL_IDS:
+                        if hid in text:
+                            detected_hotel_id = hid
+                            break
+
+                if detected_report and detected_hotel_id:
                     break
 
             pdf.close()
 
-            if not detected_report:
-                return Response(
-                    {"filename": file_obj.name, "report_type": "Unknown"},
-                    status=200
-                )
-
             return Response(
-                {"filename": file_obj.name, "report_type": detected_report},
+                {
+                    "filename": file_obj.name,
+                    "report_type": detected_report or "Unknown",
+                    "hotel_id": detected_hotel_id or "Unknown",
+                },
                 status=200
             )
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-
-
-
-
-
-
 
 
 
@@ -2298,6 +2308,7 @@ class QRCodeScanView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
