@@ -24,6 +24,10 @@ def index(request):
 
 
 
+
+
+
+
 class FileNameView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
@@ -35,6 +39,7 @@ class FileNameView(APIView):
         return Response({"filename": file_obj.name})
 
 
+# List of all known report types
 # List of all known report types
 REPORT_TYPES = [
     "Booked Reservations",
@@ -103,11 +108,6 @@ class PDFParserView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-
-
-
-
 
 
 
@@ -1114,7 +1114,7 @@ class OccupancyForecastAPIView(APIView):
                     if header[-1] == "ADR":
 
                         for row in table[2:]:
-                            if len(row) == 14:  # Ensure correct number of columns
+                            if len(row) == 14 and row[0].strip().lower() != "totals":  # Ensure correct number of columns
                                 occupancy_data = {
                                 "Date": row[0],
                                 "Day Of Week": row[1],
@@ -1134,32 +1134,35 @@ class OccupancyForecastAPIView(APIView):
                                 data["Hotel id"] = "0535"
                                 data["Occupancy Forecast and History"].append(occupancy_data)
 
-                    elif header[-1] == "Children":
+                    elif header[-1] == "Guaranteed":
                         for row in table[2:]:
-                            if len(row) == 15:  # Ensure correct number of columns
+                            if len(row) == 15 and row[0].strip().lower() != "totals":  # Ensure correct number of columns
                                 occupancy_data = {
-                                "Date": row[0],
-                                "Day Of Week": row[1],
-                                "Confirmed Revenue": row[2],
-                                "Total Rooms": row[3],
-                                "Sold Rooms": row[4],
-                                "Rooms Sold Excluding Complimentary And House Room": row[5],
-                                "OOO": row[6],
-                                "Available Rooms": row[7],
-                                "Arrivals": row[8],
-                                "Guaranteed": row[9],
-                                "Non Guaranteed": row[10],
-                                "Stay Overs": row[11],
-                                "Departures": row[12],
-                                "Adults": row[13],
-                                "Children": row[14],
+                            "Date": row[0],
+                            "Comp Reservations": row[1],
+                            "Occupancy Excluding OOO Comp and House Use": row[2],
+
+                            "Arrivals": row[3],
+                            "Adults": row[4],
+                            "Non Guaranteed":row[5],
+                            "AVAILABLE ROOMS": row[6],
+                            "REVPAR WITH DOWN ROOMS": row[7],
+                            "CHILDREN": row[8],
+                            "OOO": row[9],
+                            "Confirmed Revenue": row[10],
+                            "Day Of Week": row[11],
+                            "REVPAR WITHOUT DOWN ROOMS": row[12],
+                            "Sold Rooms": row[13],
+                            "Guaranteed": row[14],
+
+
                             }
                                 data["Hotel id"] = "FTWCL"
                                 data["Occupancy Forecast and History for Hampton"].append(occupancy_data)
 
                     elif header[-2] == "Guaranteed":
                         for row in table[2:]:
-                            if len(row) == 15:  # Ensure correct number of columns
+                            if len(row) == 15 and row[0].strip().lower() != "totals":  # Ensure correct number of columns
                                 occupancy_data = {
                                 "Date": row[0],
                                 "Day Of Week": row[1],
@@ -1583,7 +1586,7 @@ class Adjustmentandrefund(APIView):
 
                     if data["Hotel ID"]=="FTWAA":
                         data["Hotel ID"]="FTWAA"
-                
+
                     elif data["Hotel ID"]=="":
                         data["Hotel ID"]="FTWCL"
 
@@ -1605,35 +1608,35 @@ class Adjustmentandrefund(APIView):
                             current_section = "Adjustment Summary"
                             continue
                         elif any("Refunds" in cell for cell in row if cell) and not any("Summary" in cell for cell in row if cell):
-                
+
                             current_section = "Refunds"
                             continue
-                            
+
                         elif any("Summary" in cell for cell in row if cell) and not any("Adjustment" in cell for cell in row if cell):
-                            
+
                             current_section = "Refunds Summary"
                             continue
-                        
+
                         # Skip the row if it matches the headers (for Adjustment Summary)
                         if current_section == "Adjustment Summary" and row[:5] == adjustment_summary_headers:
                             continue
-                            
+
                         if current_section == "Refunds" and row[:9] == refund_section:
                             continue
-                            
+
                         if current_section == "Refunds Summary" and row[:3] == refund_summary_headers:
                             continue
 
 
-                        
+
                         # Skip the row if it contains headers like "Date", "Time", etc.
                         if row[0] is not None and "Date" in row[0] or row[1] is not None and "Time" in row[1]:
-                            continue  # This is the header row, so skip it           
-                    
+                            continue  # This is the header row, so skip it
 
 
-                    
-        
+
+
+
 
                     # Initialize row_data and capture the data from the table rows
                         row_data = None
@@ -1655,7 +1658,7 @@ class Adjustmentandrefund(APIView):
                                 "Remarks": row[11].replace('\n', ' ').strip(),
                         }
                         elif current_section == "Adjustments" and len(row) == 9 :
-                            if row[0] and row[0].strip().lower() != "totals":                         
+                            if row[0] and row[0].strip().lower() != "totals":
                                 row_data = {
                             "Date": row[0],
                             "Time": row[1],
@@ -1667,11 +1670,11 @@ class Adjustmentandrefund(APIView):
                             "Adjustment Reason Code": row[7].replace('\n', ' ').strip(),
                             "Adjusted Amount": row[8].replace('\n', ' ').strip(),
                             #"Payment Type Refunded": row[8].replace('\n', ' ').strip(),
-                   
+
                         }
                         elif current_section == "Refunds" and len(row) == 9 :
                             if row[0] and row[0].strip().lower() != "totals":
-                            
+
                                 row_data = {
                             "Date": row[0],
                             "Time": row[1],
@@ -1680,14 +1683,14 @@ class Adjustmentandrefund(APIView):
                             "Transaction Name": row[3].replace('\n', ' ').strip(),
                             "Transaction Number": row[4],
                             "Room Number": row[5],
-                            
+
                             "Payment Detail": row[6].replace('\n', ' ').strip(),
                             "Refund Code": row[7].replace('\n', ' ').strip(),
                             "Payment Type Refunded": row[8].replace('\n', ' ').strip(),
-                   
+
                         }
                         elif len(row) == 7:
-                        
+
                             row_data = {
                             "Type": row[0].replace('\n', ' ').strip(),
                             "Name": row[1].replace('\n', ' ').strip(),
@@ -1713,9 +1716,9 @@ class Adjustmentandrefund(APIView):
 
                         elif len(row) == 3:
                             if all(cell is not None and cell.strip() != "" for cell in row):
-                            
-                            
-                        
+
+
+
                                 row_data = {
                             "Type": row[0],
                             "Name": row[1],
@@ -1734,7 +1737,7 @@ class Adjustmentandrefund(APIView):
                                 data["Refunds"].append(row_data)
                             elif current_section == "Refunds Summary":
                                 #data["Hotel ID"] ="FTWCL"
-                                
+
                                 data["Refunds Summary"].append(row_data)
 
 
@@ -1830,12 +1833,14 @@ class Directbilagging(APIView):
 
                         if len(row) == 9:
                             if row[0] and row[0].strip().lower() != "totals":
+
                                 row_data = {
                                 "Company Name": row[0],
-                                " Company Code": row[1],
+                                "Company Code": row[1],
                                 "Current": row[2],
                                 "Over 30": row[3].replace('\n', '').strip() if row[3] else "",
                                 "Over 60": row[4].replace('\n', '').strip() if row[4] else "",
+
                                 "Over 90": row[5],
                                 "Over 120 Days": row[6],
                                 "Over 150": row[7],
@@ -2308,10 +2313,4 @@ class QRCodeScanView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-
-
-
 
